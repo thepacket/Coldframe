@@ -1,5 +1,6 @@
 import type { Artifact } from './types';
 import { buildView, humanise, type View } from './model';
+import { drawExpression, expressionHeight } from './expression';
 import { drawMap, mapAspect, pickPoint, type MapPoint } from './map';
 import { draw, hitTest, layout, type Hit, type Layout } from './panel';
 import { readPalette, type Palette } from './theme';
@@ -27,6 +28,7 @@ const el = <T extends HTMLElement>(id: string): T => {
 
 const canvas = el<HTMLCanvasElement>('panel');
 const mapCanvas = el<HTMLCanvasElement>('map');
+const exprCanvas = el<HTMLCanvasElement>('expression');
 const stage = canvas.parentElement as HTMLElement;
 const status = el<HTMLParagraphElement>('status');
 const tooltip = el<HTMLDivElement>('tooltip');
@@ -81,6 +83,50 @@ function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   draw(ctx, view, box, palette, artifact.genotypes, humanise(view.axis), selectedSite);
   renderMap();
+  renderExpression();
+}
+
+/**
+ * Expression split by genotype at the selected site. Like the map, this needs
+ * per-accession calls and so is absent from a --public build.
+ */
+function renderExpression() {
+  const card = el('response');
+  if (!artifact.genotypes || selectedSite === null) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+
+  const w = Math.max(420, stage.clientWidth - 40);
+  const h = expressionHeight;
+  const dpr = window.devicePixelRatio || 1;
+  exprCanvas.width = Math.round(w * dpr);
+  exprCanvas.height = Math.round(h * dpr);
+  exprCanvas.style.width = `${w}px`;
+  exprCanvas.style.height = `${h}px`;
+
+  const ctx = exprCanvas.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const result = drawExpression(
+    ctx, w, h, palette,
+    artifact.accessions,
+    artifact.genotypes[selectedSite],
+    view.axis,
+  );
+
+  const site = artifact.sites[selectedSite];
+  el('response-r').textContent =
+    result.r === null ? '' : `dosage vs expression r = ${result.r.toFixed(3)}`;
+  el('response-caveat').textContent =
+    `${site ? `At ${artifact.locus.chrom}:${site.pos.toLocaleString()}. ` : ''}` +
+    'Rosette leaf, measured once under ambient conditions — so this is an ' +
+    'association with expression level, not a response: nothing was done to ' +
+    'these plants. Dots carry the climate each accession came from, because if ' +
+    'one allele is also the cold-origin allele, the confound is the finding. ' +
+    'Heterozygotes are near-absent throughout: Arabidopsis is highly selfing.';
 }
 
 /**
@@ -117,6 +163,7 @@ function renderMap() {
     `${artifact.locus.chrom}:${site.pos.toLocaleString()}<span>${site.ref} &rarr; ${site.alt}</span>`;
   el('map-stats').innerHTML = `
     <dt>r vs ${humanise(view.axis)}</dt><dd>${r === null ? '&mdash;' : r.toFixed(3)}</dd>
+    <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>Called in</dt><dd>${site.called} plants</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
@@ -160,6 +207,7 @@ function tooltipHtml(hit: Hit): string | null {
       <dl>
         <dt>r vs ${axisLabel}</dt><dd>${column.r.toFixed(3)}</dd>
         <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
+        <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
         <dt>Called in</dt><dd>${site.called} plants</dd>
       </dl>`;
   }

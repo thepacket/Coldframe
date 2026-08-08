@@ -146,6 +146,39 @@ The map needs per-accession calls, so it does not appear in a `--public` build.
 That is the sharpest cost of the licensing position, and the best argument for
 getting the terms confirmed.
 
+## Expression by genotype
+
+The panel and the map both show *where* an allele is. This asks whether it does
+anything: expression split by what each plant carries at the selected site.
+
+One limit, stated in the interface rather than buried here. GSE80744 measured
+rosette leaves once, under ambient conditions — one condition, no cold
+treatment, no time course. So this is an association with expression level, a
+cis-eQTL test. It is not a response, because nothing was done to these plants.
+Answering the question in the tagline properly needs expression measured under
+treatment, which this dataset does not contain.
+
+Every dot carries the climate its accession came from. If one allele is also
+the cold-origin allele, the confound is the finding, so it is drawn rather than
+hidden.
+
+Two loci make the point better than any explanation:
+
+- **CO** has the strongest climate cline in the set (r = −0.54) and essentially
+  no expression association (r = −0.04). The allele tracks the world without
+  changing how much of the gene is made.
+- **FRI** is the reverse. At 4:269,260 the alternate allele carries
+  **r = −0.775** against expression — carriers make far less *FRI* — while that
+  same site has almost no climate cline (r = −0.02). This is the textbook
+  natural variant: broken *FRI* is what turns a winter annual into a
+  rapid-cycling plant.
+
+*FLC* is the one where both appear together, which is also what the literature
+would predict.
+
+Per-site expression associations are precomputed for every site, so the signal
+shows up on hover rather than needing a hunt.
+
 ## Contributing
 
 Issues are welcome — corrections to the biology especially. Pull requests are

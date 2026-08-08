@@ -207,6 +207,7 @@ sampleIds.forEach((id, col) => {
 // Per-site statistics. These are computed from the genotype matrix but are not
 // a subset of it, so they ship even when the matrix itself cannot.
 const cline = Object.fromEntries([['lat', []], ...CLIMATE_VARS.map((v) => [v, []])]);
+const logExpr = kept.map((a) => (a.expression === null ? null : Math.log10(a.expression + 1)));
 const siteStats = rows.map((row, si) => {
   const calls = kept.map(({ col }) => row[col]);
   const dosage = calls.map((c) => (c === '.' ? null : c === '0' ? 0 : c === '1' ? 1 : 2));
@@ -224,7 +225,19 @@ const siteStats = rows.map((row, si) => {
     cline[axis].push(g.length < MIN_CALLED ? null : round(pearson(g, e)));
   }
 
-  return { ...sites[si], altFreq: round(altFreq, 4), called };
+  // Allele dosage against expression - a cis-eQTL test at this site. Cheap to
+  // precompute, and without it the signal is only findable by clicking around:
+  // the strongest expression effects rarely sit at the strongest climate cline.
+  let exprR = null;
+  if (testable) {
+    const g = [], e = [];
+    dosage.forEach((d, i) => {
+      if (d !== null && logExpr[i] !== null) { g.push(d); e.push(logExpr[i]); }
+    });
+    if (g.length >= MIN_CALLED) exprR = round(pearson(g, e));
+  }
+
+  return { ...sites[si], altFreq: round(altFreq, 4), called, exprR };
 });
 
 // Per-band allele frequencies for the strongest sites on each axis.
