@@ -97,7 +97,7 @@ h1 {
   margin: 0.3rem 0 0;
   color: var(--muted);
   font-size: 0.9rem;
-  max-width: 46ch;
+  max-width: 62ch; /* holds the line together instead of breaking on "each" */
 }
 
 .theme-toggle {
@@ -116,6 +116,86 @@ h1 {
 }
 
 .theme-toggle:hover { border-color: var(--muted); color: var(--ink); }
+
+/* --- orientation -------------------------------------------------------- */
+
+.standfirst {
+  margin: 0 0 1.5rem;
+  max-width: 66ch;
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.primer {
+  margin-bottom: 2rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.85rem 0;
+}
+
+.primer summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  user-select: none;
+}
+
+.primer summary::-webkit-details-marker { display: none; }
+
+.primer summary::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform 0.15s;
+}
+
+.primer[open] summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+.primer summary:hover { color: var(--ink-soft); }
+.primer summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+.primer-steps {
+  margin: 1.1rem 0 0.4rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 74ch;
+}
+
+.primer-steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 2rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.primer-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.3rem;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.primer-steps strong { color: var(--ink); font-weight: 600; }
+.primer-steps em { font-style: italic; }
 
 /* --- locus picker ------------------------------------------------------- */
 
