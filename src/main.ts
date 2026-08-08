@@ -47,7 +47,7 @@ let chosenAxis: string | null = null;
 /** Index into artifact.sites - the site the map is drawing. */
 let selectedSite: number | null = null;
 let mapPoints: MapPoint[] = [];
-/** Until the slider is touched, it tracks the maximum rather than a fixed 48. */
+/** Until the slider is touched, it tracks the maximum rather than a fixed count. */
 let siteCountTouched = false;
 
 // --- theme ------------------------------------------------------------------

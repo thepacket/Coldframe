@@ -179,11 +179,10 @@ would predict.
 Per-site expression associations are precomputed for every site, and **Rank
 sites by → Expression effect** reorders the panel around them.
 
-That control is not a convenience. Only 48 of a region's several hundred
-variable sites fit on screen, and ranking them by climate gradient hides the
-expression story almost everywhere: the strongest eQTL is the 86th strongest
-cline at *FRI*, the 178th at *CBF* and *PHYB*, the 218th at *CMT2*. In five of
-nine loci it never appeared at all until the ranking became switchable.
+That control is not a convenience. Ranking by climate gradient buries the
+expression story: the strongest eQTL is the 86th strongest cline at *FRI*, the
+178th at *CBF* and *PHYB*, the 218th at *CMT2*. Back when the panel was capped
+at 48 sites it never appeared at all in five of nine loci.
 
 The expression association carries the same ancestry control as the climate
 cline. At *FRI* it holds up far better than any cline in the project —

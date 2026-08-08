@@ -93,8 +93,8 @@ export function draw(
 
   // --- every site -----------------------------------------------------------
   //
-  // The panel below shows 48 sites; the region has hundreds, and most cannot
-  // support a correlation. They are drawn here anyway, at true genomic
+  // The panel below shows every site a correlation can score; most of the
+  // region cannot support one. Those are drawn here anyway, at true genomic
   // position, measured by something that works at any frequency: how far the
   // environment of carriers sits from the environment of everyone else.
   // Nothing in the region is unreachable.
