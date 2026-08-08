@@ -17,6 +17,8 @@ export interface Site {
   alt: string;
   altFreq: number;
   called: number;
+  /** Plants carrying at least one alternate allele. Defined at any frequency. */
+  carriers: number;
   /** Allele dosage against log expression - a cis-eQTL test. Null if untestable. */
   exprR: number | null;
   /** The same, computed within ancestry groups. */
@@ -74,6 +76,13 @@ export interface Artifact {
    * structure.
    */
   clineWithin: Record<string, (number | null)[]>;
+  /**
+   * Standardised difference in environment between carriers and non-carriers,
+   * per axis, for every site including those too rare to correlate. This is
+   * what makes rare variants visible: an allele in eight plants that all grew
+   * somewhere cold shows a large shift where `cline` is simply null.
+   */
+  shift: Record<string, (number | null)[]>;
   /** Admixture group per accession, aligned to `accessions`. */
   ancestry: string[];
   /**

@@ -237,17 +237,30 @@ these clines as demonstrated adaptation.
 Coldframe shows a curated slice, not a region. Three filters sit between the
 data and the screen, and the panel now states the first two on every render.
 
-**Rare variants get no statistic.** Any site where the rarer allele appears in
-under 5% of plants, or which is called in fewer than 300 of them, is dropped
-before ranking. A correlation carried by twenty plants is noise, so this is
-defensible — but it is not small. Across the nine loci: **9,403 segregating
-sites, 1,439 testable, 15%.** At *FLC*, 690 of 974 sites fail on frequency
-alone.
+**Rare variants get no *correlation*.** Any site where the rarer allele appears
+in under 5% of plants, or which is called in fewer than 300, gets a null `cline`
+and `exprR`. Across the nine loci that is **9,403 segregating sites, 1,439
+testable — 15%**; at *FLC*, 690 of 974 fail on frequency alone.
 
-**Only 48 sites are drawn.** Of the 15% that survive, the panel shows 48. Which
-48 depends on the ranking, and the two rankings disagree hard enough that the
-strongest expression effect was unreachable in five of nine loci until the
-ranking became switchable.
+That is a limit of the statistic, not a verdict on the site, and the two were
+conflated here until 2026-08-08. Rare often means young, and young is where
+recent adaptation lives — the *FRI* nulls are a family of independent
+loss-of-function alleles, several of them rare. So every site also carries
+`carriers` and a per-axis `shift`: the standardised difference between the
+environment of carriers and everyone else, which works down to a single plant.
+At *FRI* that surfaces 163 sites with real environmental structure that no
+correlation could reach, including alleles in eight to thirteen plants sitting
+1.8 SD warm of the panel mean.
+
+The all-sites strip at the top of the panel draws every one of them at true
+genomic position, dimmed where untestable, and any tick is clickable. **Nothing
+in the region is unreachable.**
+
+**Only 48 sites get the full treatment.** The ranked panel below the strip shows
+48 — a viewport limit with no statistical justification, which is why the strip
+above it exists. Which 48 depends on the ranking, and the two rankings disagree
+hard enough that the strongest expression effect was unreachable in five of nine
+loci until the ranking became switchable.
 
 **Ten environmental measures out of 212.** AraCLIM ships 212 columns;
 [loci.json](loci.json)'s companion list in `build-locus.mjs` uses ten, chosen

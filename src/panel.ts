@@ -12,6 +12,7 @@ const MATRIX_GAP = 14;
 const CAPTION_H = 22;
 const SECTION_GAP = 20;
 const CLINE_H = 44;
+const OVERVIEW_H = 40;
 const BAND_H = 6;
 const ROW_H = 1;
 const MIN_CELL = 9;
@@ -22,6 +23,7 @@ export interface Layout {
   height: number;
   cellW: number;
   matrixX: number;
+  overviewY: number;
   clineY: number;
   bandsY: number;
   rowsY: number;
@@ -30,6 +32,7 @@ export interface Layout {
 }
 
 export type Hit =
+  | { kind: 'overview'; site: number }
   | { kind: 'row'; row: number; col: number | null }
   | { kind: 'band'; band: number; col: number | null }
   | { kind: 'cline'; col: number }
@@ -40,7 +43,8 @@ export function layout(view: View, available: number): Layout {
   const cols = Math.max(1, view.columns.length);
   const cellW = Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor((available - matrixX) / cols)));
 
-  const clineY = CAPTION_H;
+  const overviewY = CAPTION_H;
+  const clineY = overviewY + OVERVIEW_H + SECTION_GAP + CAPTION_H;
   const bandsY = clineY + CLINE_H + SECTION_GAP + CAPTION_H;
   const bandsH = view.bands.length * BAND_H;
   const rowsY = bandsY + bandsH + SECTION_GAP + CAPTION_H;
@@ -51,6 +55,7 @@ export function layout(view: View, available: number): Layout {
     height: rowsY + rowsH,
     cellW,
     matrixX,
+    overviewY,
     clineY,
     bandsY,
     rowsY,
@@ -85,6 +90,60 @@ export function draw(
   const aSpan = aHi - aLo || 1;
   const climateColor = (v: number) => mix(p.climCold, p.climWarm, (v - aLo) / aSpan);
   const exprColor = (t: number) => mix(p.exprLo, p.exprHi, t);
+
+  // --- every site -----------------------------------------------------------
+  //
+  // The panel below shows 48 sites; the region has hundreds, and most cannot
+  // support a correlation. They are drawn here anyway, at true genomic
+  // position, measured by something that works at any frequency: how far the
+  // environment of carriers sits from the environment of everyone else.
+  // Nothing in the region is unreachable.
+
+  const overviewX = (pos: number) =>
+    L.matrixX + ((pos - view.span[0]) / (view.span[1] - view.span[0] || 1)) * (L.width - L.matrixX);
+
+  const testableCount = view.allSites.filter((s) => s.testable).length;
+  caption(
+    `All ${view.allSites.length} variable sites · ${testableCount} support a correlation · height is environmental shift of carriers`,
+    L.overviewY,
+  );
+
+  const maxShift = Math.max(0.5, ...view.allSites.map((s) => Math.abs(s.shift ?? 0)));
+  const overviewMid = L.overviewY + OVERVIEW_H / 2;
+
+  ctx.strokeStyle = p.rule;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(L.matrixX, overviewMid + 0.5);
+  ctx.lineTo(L.width, overviewMid + 0.5);
+  ctx.stroke();
+
+  for (const site of view.allSites) {
+    if (site.shift === null) continue;
+    const h = (Math.abs(site.shift) / maxShift) * (OVERVIEW_H / 2 - 2);
+    // Untestable sites are dimmed, never omitted - the distinction is between
+    // "measured a different way" and "not there".
+    ctx.globalAlpha = site.testable ? 0.85 : 0.4;
+    ctx.fillStyle = css(site.shift >= 0 ? p.climWarm : p.climCold);
+    ctx.fillRect(overviewX(site.pos), site.shift >= 0 ? overviewMid - h : overviewMid, 1.5, h);
+  }
+  ctx.globalAlpha = 1;
+
+  // Bracket the slice the panel below is actually showing.
+  if (view.columns.length > 0) {
+    const first = view.columns[0] as (typeof view.columns)[number];
+    const last = view.columns[view.columns.length - 1] as (typeof view.columns)[number];
+    ctx.strokeStyle = p.muted;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.strokeRect(
+      overviewX(first.site.pos) - 2.5,
+      L.overviewY - 2.5,
+      overviewX(last.site.pos) - overviewX(first.site.pos) + 5,
+      OVERVIEW_H + 5,
+    );
+    ctx.setLineDash([]);
+  }
 
   // --- cline strength -------------------------------------------------------
 
@@ -190,6 +249,18 @@ export function draw(
   const selectedCol =
     selected === null ? -1 : view.columns.findIndex((c) => c.siteIndex === selected);
 
+  if (selected !== null) {
+    const site = view.allSites[selected];
+    if (site) {
+      ctx.strokeStyle = p.accent;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(overviewX(site.pos)) + 0.5, L.overviewY);
+      ctx.lineTo(Math.round(overviewX(site.pos)) + 0.5, L.overviewY + OVERVIEW_H);
+      ctx.stroke();
+    }
+  }
+
   if (selectedCol >= 0) {
     const x = L.matrixX + selectedCol * L.cellW;
     const bottom = view.hasGenotypes
@@ -205,6 +276,21 @@ export function hitTest(view: View, L: Layout, x: number, y: number): Hit {
   const col = x >= L.matrixX
     ? Math.min(view.columns.length - 1, Math.floor((x - L.matrixX) / L.cellW))
     : null;
+
+  if (y >= L.overviewY && y < L.overviewY + OVERVIEW_H) {
+    const span = view.span[1] - view.span[0] || 1;
+    const pos = view.span[0] + ((x - L.matrixX) / (L.width - L.matrixX)) * span;
+    let best = -1;
+    let bestD = Infinity;
+    for (const site of view.allSites) {
+      const d = Math.abs(site.pos - pos);
+      if (d < bestD) { bestD = d; best = site.index; }
+    }
+    // Within a few pixels' worth of sequence, otherwise it is a miss.
+    return best >= 0 && bestD < (span / Math.max(1, L.width - L.matrixX)) * 6
+      ? { kind: 'overview', site: best }
+      : null;
+  }
 
   if (y >= L.clineY && y < L.clineY + CLINE_H) {
     return col === null ? null : { kind: 'cline', col };

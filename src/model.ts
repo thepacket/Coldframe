@@ -39,9 +39,22 @@ export interface Band {
   groups: [string, number][];
 }
 
+/** Every segregating site in the region, for the overview strip. */
+export interface OverviewSite {
+  index: number;
+  pos: number;
+  shift: number | null;
+  carriers: number;
+  /** Whether a correlation could be computed here at all. */
+  testable: boolean;
+}
+
 export interface View {
   axis: string;
   rankBy: RankBy;
+  allSites: OverviewSite[];
+  /** Region bounds, for placing overview ticks at true genomic position. */
+  span: [number, number];
   columns: Column[];
   /** Empty when the artifact carries no genotypes (a --public build). */
   rows: Row[];
@@ -145,6 +158,15 @@ export function buildView(
     }
   }
 
+  const shifts = artifact.shift?.[axis] ?? [];
+  const allSites: OverviewSite[] = artifact.sites.map((site, i) => ({
+    index: i,
+    pos: site.pos,
+    shift: shifts[i] ?? null,
+    carriers: site.carriers ?? 0,
+    testable: cline[i] !== null && cline[i] !== undefined,
+  }));
+
   const values = ordered.map((o) => o.axisValue);
   const axisRange: [number, number] = values.length
     ? [Math.min(...values), Math.max(...values)]
@@ -153,6 +175,8 @@ export function buildView(
   return {
     axis,
     rankBy,
+    allSites,
+    span: [artifact.locus.start, artifact.locus.end],
     columns,
     rows,
     bands,

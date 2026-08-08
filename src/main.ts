@@ -164,16 +164,20 @@ function renderMap() {
   el('map-site').innerHTML =
     `${artifact.locus.chrom}:${site.pos.toLocaleString()}<span>${site.ref} &rarr; ${site.alt}</span>`;
   const rWithin = artifact.clineWithin?.[view.axis]?.[selectedSite] ?? null;
+  const shift = artifact.shift?.[view.axis]?.[selectedSite] ?? null;
   el('map-stats').innerHTML = `
-    <dt>r vs ${humanise(view.axis)}</dt><dd>${r === null ? '&mdash;' : r.toFixed(3)}</dd>
+    <dt>Carriers</dt><dd>${site.carriers} of ${site.called}</dd>
+    <dt>${humanise(view.axis)} shift</dt><dd>${
+      shift === null ? '&mdash;' : `${shift > 0 ? '+' : ''}${shift.toFixed(2)} SD`
+    }</dd>
+    <dt>r vs ${humanise(view.axis)}</dt><dd>${r === null ? 'too rare' : r.toFixed(3)}</dd>
     <dt>within ancestry</dt><dd>${kept(rWithin, r)}</dd>
-    <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
+    <dt>r vs expression</dt><dd>${site.exprR === null ? 'too rare' : site.exprR.toFixed(3)}</dd>
     <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
-    <dt>Called in</dt><dd>${site.called} plants</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
   el('map-hint').textContent =
-    `Click any column below to change site.` +
+    `Click any column below, or any tick in the all-sites strip, to change site.` +
     (result.offMap
       ? ` ${result.offMap} accessions fall outside the native range and are not drawn — Arabidopsis in North America is introduced, carrying European genotypes without having adapted locally.`
       : '');
@@ -215,6 +219,33 @@ const kept = (within: number | null, raw: number | null) => {
   return `${within.toFixed(3)} (${Math.round((within / raw) * 100)}% kept)`;
 };
 
+/**
+ * Any site in the region, including one too rare for a correlation. Those get
+ * carriers and the environmental shift instead of an r, and say so - the point
+ * is that they are reachable and measured, not that they are equivalent.
+ */
+function overviewTip(index: number): string | null {
+  const site = artifact.sites[index];
+  if (!site) return null;
+  const axisLabel = humanise(view.axis);
+  const shift = artifact.shift?.[view.axis]?.[index] ?? null;
+  const r = artifact.cline[view.axis]?.[index] ?? null;
+
+  return `<div class="tip-title">${artifact.locus.chrom}:${site.pos.toLocaleString()}</div>
+    <div class="tip-sub">${site.ref} &rarr; ${site.alt} · ${
+      r === null ? 'too rare to correlate' : 'correlation testable'
+    }</div>
+    <dl>
+      <dt>Carriers</dt><dd>${site.carriers} of ${site.called}</dd>
+      <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
+      <dt>${axisLabel} shift</dt><dd>${
+        shift === null ? '&mdash;' : `${shift > 0 ? '+' : ''}${shift.toFixed(2)} SD`
+      }</dd>
+      ${r === null ? '' : `<dt>r vs ${axisLabel}</dt><dd>${r.toFixed(3)}</dd>`}
+      ${site.exprR === null ? '' : `<dt>r vs expression</dt><dd>${site.exprR.toFixed(3)}</dd>`}
+    </dl>`;
+}
+
 const GENOTYPE_NAME: Record<string, string> = {
   '0': 'reference',
   '1': 'heterozygous',
@@ -225,7 +256,11 @@ const GENOTYPE_NAME: Record<string, string> = {
 function tooltipHtml(hit: Hit): string | null {
   if (!hit) return null;
   const axisLabel = humanise(view.axis);
-  const column = hit.kind !== 'cline' ? (hit.col === null ? null : view.columns[hit.col]) : view.columns[hit.col];
+
+  if (hit.kind === 'overview') return overviewTip(hit.site);
+
+  const col = hit.kind === 'cline' ? hit.col : hit.col;
+  const column = col === null ? null : view.columns[col];
   const site = column?.site;
   const where = site ? `${artifact.locus.chrom}:${site.pos.toLocaleString()}` : '';
 
@@ -305,9 +340,15 @@ canvas.addEventListener('mouseleave', () => { tooltip.hidden = true; });
 canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const hit = hitTest(view, box, e.clientX - rect.left, e.clientY - rect.top);
-  const col = hit && hit.col !== undefined ? hit.col : null;
-  if (col === null) return;
-  const column = view.columns[col];
+  if (!hit) return;
+
+  if (hit.kind === 'overview') {
+    selectedSite = hit.site;
+    render();
+    return;
+  }
+  if (hit.col === null) return;
+  const column = view.columns[hit.col];
   if (!column) return;
   selectedSite = column.siteIndex;
   render();

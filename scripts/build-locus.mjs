@@ -40,8 +40,14 @@ const CLIMATE_VARS = [
   'SRTM_elevation',
 ];
 
-// Sites rarer than this are dropped from the cline statistics - a correlation
-// carried by a handful of accessions is noise, not a gradient.
+// Below these, a Pearson correlation across the panel is not reliable, so
+// `cline` and `exprR` are left null.
+//
+// This is a limit of that statistic, not a judgement that the site is
+// uninteresting - rare often means young, and young is where recent adaptation
+// lives. Every site therefore also carries `carriers` and a per-axis `shift`,
+// which are computable at any frequency, so nothing is dropped from the
+// artifact and nothing is unreachable in the interface.
 const MIN_ALT_FREQ = 0.05;
 const MIN_CALLED = 300;
 
@@ -225,6 +231,27 @@ const cline = Object.fromEntries([['lat', []], ...CLIMATE_VARS.map((v) => [v, []
  * to flag a confound, not enough to publish on.
  */
 const clineWithin = Object.fromEntries(Object.keys(cline).map((k) => [k, []]));
+
+/**
+ * Standardised difference in the environment of carriers versus non-carriers,
+ * per axis, for *every* site regardless of how rare. Where a correlation needs
+ * spread across the panel, this only needs two groups, so an allele in eight
+ * plants still says something: if all eight grew somewhere cold, that shows up
+ * here as a large shift even though `cline` is null.
+ */
+const shift = Object.fromEntries(Object.keys(cline).map((k) => [k, []]));
+
+// Mean and SD of each axis over the panel, computed once.
+const axisStats = Object.fromEntries(
+  Object.keys(cline).map((axis) => {
+    const vals = kept
+      .map((a) => (axis === 'lat' ? a.lat : a.climate[axis]))
+      .filter((v) => v !== null);
+    const mean = vals.reduce((s, v) => s + v, 0) / (vals.length || 1);
+    const sd = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / (vals.length || 1));
+    return [axis, { mean, sd }];
+  }),
+);
 const groupOf = kept.map((a) => a.group ?? 'unknown');
 const groupNames = [...new Set(groupOf)];
 const logExpr = kept.map((a) => (a.expression === null ? null : Math.log10(a.expression + 1)));
@@ -234,8 +261,26 @@ const siteStats = rows.map((row, si) => {
   const called = dosage.filter((d) => d !== null).length;
   const altFreq = called === 0 ? 0 : dosage.reduce((s, d) => s + (d ?? 0), 0) / (2 * called);
 
+  const carriers = dosage.filter((d) => d !== null && d > 0).length;
+
   const testable = called >= MIN_CALLED && altFreq >= MIN_ALT_FREQ && altFreq <= 1 - MIN_ALT_FREQ;
   for (const axis of Object.keys(cline)) {
+    // Computed for every site, testable or not.
+    const withA = [], withoutA = [];
+    kept.forEach((acc, i) => {
+      const v = axis === 'lat' ? acc.lat : acc.climate[axis];
+      if (dosage[i] === null || v === null) return;
+      (dosage[i] > 0 ? withA : withoutA).push(v);
+    });
+    const sd = axisStats[axis].sd;
+    if (withA.length === 0 || withoutA.length === 0 || sd === 0) {
+      shift[axis].push(null);
+    } else {
+      const mA = withA.reduce((s, v) => s + v, 0) / withA.length;
+      const mB = withoutA.reduce((s, v) => s + v, 0) / withoutA.length;
+      shift[axis].push(round((mA - mB) / sd, 3));
+    }
+
     if (!testable) { cline[axis].push(null); clineWithin[axis].push(null); continue; }
     const g = [], e = [];
     kept.forEach((acc, i) => {
@@ -291,7 +336,7 @@ const siteStats = rows.map((row, si) => {
     if (weight > 0) exprRWithin = round(weighted / weight);
   }
 
-  return { ...sites[si], altFreq: round(altFreq, 4), called, exprR, exprRWithin };
+  return { ...sites[si], altFreq: round(altFreq, 4), called, carriers, exprR, exprRWithin };
 });
 
 // Per-band allele frequencies for the strongest sites on each axis.
@@ -397,6 +442,7 @@ const artifact = {
   // null where the site is too rare or too poorly called to test.
   cline,
   clineWithin,
+  shift,
   ancestry: kept.map((a) => a.group ?? 'unknown'),
   bands,
   // One string per site, one character per accession, in `accessions` order.
