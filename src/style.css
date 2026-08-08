@@ -113,6 +113,46 @@ h1 {
 
 .theme-toggle:hover { border-color: var(--muted); color: var(--ink); }
 
+/* --- locus picker ------------------------------------------------------- */
+
+.loci {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.loci button {
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  padding: 0.3rem 0.75rem;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.loci button:hover { border-color: var(--muted); color: var(--ink); }
+
+.loci button[aria-current="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--panel);
+}
+
+.loci button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.locus-note {
+  margin: 0.9rem 0 0;
+  max-width: 68ch;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.locus-note[hidden] { display: none; }
+
 /* --- locus bar ---------------------------------------------------------- */
 
 .locus-bar {

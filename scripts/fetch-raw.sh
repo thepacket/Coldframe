@@ -2,11 +2,13 @@
 # Fetches the source data Coldframe builds on. Everything lands in data/raw,
 # which is disposable - rerun this to rebuild it. Total ~30MB, plus one
 # VCF per locus.
-set -euo pipefail
+# No pipefail on purpose: reading a header with `gzcat ... | head -1` leaves
+# gzcat killed by SIGPIPE, which pipefail treats as failure and set -e acts on.
+set -eu
 
-cd "$(dirname "$0")/.."
-mkdir -p data/raw
-cd data/raw
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$ROOT/data/raw"
+cd "$ROOT/data/raw"
 
 # AraCLIM: 200+ geo-climate variables for the 1131 geo-referenced accessions,
 # plus the roster itself - id, name, country, lat/lng, admixture group. That
@@ -55,4 +57,21 @@ fetch_locus() {
 }
 
 echo "loci..."
-fetch_locus FLC 5:3170000-3182000   # AT5G10140, vernalization
+while read -r label region; do
+  fetch_locus "$label" "$region"
+done < <(node -e '
+  const loci = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+  for (const l of loci) console.log(l.label, l.region);
+' "$ROOT/loci.json")
+
+# Gene models for the locus strip. Ensembl Plants rather than TAIR (terms depend
+# on an undocumented release folder) or NCBI RefSeq (chromosomes named
+# NC_003070.9, not 1-5). Concatenated gzip streams read fine as one file.
+if [ ! -s ensembl_genes.gff3.gz ]; then
+  echo "gene models..."
+  for c in 1 2 3 4 5; do
+    curl -sSL --max-time 300 \
+      "https://ftp.ebi.ac.uk/ensemblgenomes/pub/plants/current/gff3/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.63.chromosome.${c}.gff3.gz" \
+      >> ensembl_genes.gff3.gz
+  done
+fi

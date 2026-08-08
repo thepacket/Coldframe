@@ -3,9 +3,20 @@ import { buildView, humanise, type View } from './model';
 import { draw, hitTest, layout, type Hit, type Layout } from './panel';
 import { readPalette, type Palette } from './theme';
 
-// One locus for now. The artifact name is all the app needs; everything else
-// travels inside it.
-const LOCUS = 'flc';
+/** One row of data/derived/index.json, written by scripts/build-all.mjs. */
+interface IndexEntry {
+  label: string;
+  gene: string;
+  title: string;
+  note: string;
+  file: string;
+  chrom: string;
+  start: number;
+  end: number;
+  accessions: number;
+  sites: number;
+  best: { axis: string; r: number; pos: number } | null;
+}
 
 const el = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id);
@@ -25,6 +36,8 @@ let artifact: Artifact;
 let view: View;
 let box: Layout;
 let palette: Palette = readPalette();
+/** Sticky across loci once chosen, so you can hold one axis and compare genes. */
+let chosenAxis: string | null = null;
 
 // --- theme ------------------------------------------------------------------
 
@@ -161,56 +174,90 @@ canvas.addEventListener('mouseleave', () => { tooltip.hidden = true; });
 
 // --- boot -------------------------------------------------------------------
 
-async function loadArtifact(): Promise<Artifact> {
-  for (const name of [`/${LOCUS}.json`, `/${LOCUS}.public.json`]) {
-    const res = await fetch(name);
-    if (res.ok) return (await res.json()) as Artifact;
-  }
-  throw new Error(
-    `No artifact found.\n\nBuild one first:\n\n  ./scripts/fetch-raw.sh\n  node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC`,
-  );
-}
-
-async function boot() {
-  try {
-    artifact = await loadArtifact();
-  } catch (err) {
-    status.textContent = err instanceof Error ? err.message : String(err);
-    status.classList.add('error');
-    return;
-  }
-
-  const { locus } = artifact;
-  el('locus-label').textContent = locus.label;
-  el('locus-gene').textContent = locus.gene;
-  el('locus-coords').textContent =
-    `${locus.chrom}:${locus.start.toLocaleString()}–${locus.end.toLocaleString()}`;
-  el('locus-counts').textContent =
-    `${artifact.accessions.length} accessions · ${artifact.sites.length} segregating sites`;
-
-  // Strongest axis first - open on the most legible view rather than whichever
-  // variable happens to sort first alphabetically.
+/**
+ * Rebuild the axis list for the loaded locus. Ordered by how strong a cline
+ * each axis produces here, so the default opens on something worth looking at
+ * rather than whatever sorts first alphabetically.
+ */
+function populateAxes() {
   const strength = (axis: string) =>
     Math.max(0, ...(artifact.cline[axis] ?? []).map((r) => (r === null ? 0 : Math.abs(r))));
   const axes = Object.keys(artifact.cline).sort((a, b) => strength(b) - strength(a));
 
+  axisSelect.replaceChildren();
   for (const axis of axes) {
     const option = document.createElement('option');
     option.value = axis;
     option.textContent = `${humanise(axis)}  (max r ${strength(axis).toFixed(2)})`;
     axisSelect.append(option);
   }
-  axisSelect.value = axes[0] ?? 'lat';
+  axisSelect.value =
+    chosenAxis && axes.includes(chosenAxis) ? chosenAxis : (axes[0] ?? 'lat');
+}
+
+async function selectLocus(entry: IndexEntry) {
+  const res = await fetch(`/${entry.file}`);
+  if (!res.ok) throw new Error(`could not load ${entry.file}`);
+  artifact = (await res.json()) as Artifact;
+
+  el('locus-label').textContent = entry.label;
+  el('locus-gene').textContent = entry.gene;
+  el('locus-coords').textContent =
+    `${entry.chrom}:${entry.start.toLocaleString()}–${entry.end.toLocaleString()}`;
+  el('locus-counts').textContent =
+    `${artifact.accessions.length} accessions · ${artifact.sites.length} segregating sites`;
+
+  const note = el('locus-note');
+  note.textContent = `${entry.title}. ${entry.note}`;
+  note.hidden = false;
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.loci button')) {
+    button.setAttribute('aria-current', String(button.dataset['label'] === entry.label));
+  }
+
+  populateAxes();
+  rebuild();
+}
+
+async function boot() {
+  let loci: IndexEntry[];
+  try {
+    const res = await fetch('/index.json');
+    if (!res.ok) throw new Error('no index');
+    loci = ((await res.json()) as { loci: IndexEntry[] }).loci;
+    if (loci.length === 0) throw new Error('index is empty');
+  } catch {
+    status.textContent =
+      'No loci found.\n\nBuild them first:\n\n  ./scripts/fetch-raw.sh\n  node scripts/build-all.mjs';
+    status.classList.add('error');
+    return;
+  }
+
+  const nav = el('loci');
+  for (const entry of loci) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = entry.label;
+    button.dataset['label'] = entry.label;
+    button.title = entry.title;
+    button.addEventListener('click', () => void selectLocus(entry));
+    nav.append(button);
+  }
 
   status.hidden = true;
+  nav.hidden = false;
   el('locus-bar').hidden = false;
   el('controls').hidden = false;
 
-  axisSelect.addEventListener('change', rebuild);
+  axisSelect.addEventListener('change', () => {
+    chosenAxis = axisSelect.value;
+    rebuild();
+  });
   sitesInput.addEventListener('input', rebuild);
   new ResizeObserver(() => { if (view) render(); }).observe(stage);
 
-  rebuild();
+  // build-all sorts the index by strongest cline, so the first entry leads.
+  await selectLocus(loci[0] as IndexEntry);
 }
 
 void boot();

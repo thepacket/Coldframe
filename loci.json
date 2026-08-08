@@ -1,0 +1,65 @@
+[
+  {
+    "label": "FLC",
+    "gene": "AT5G10140",
+    "region": "5:3170000-3182000",
+    "title": "FLOWERING LOCUS C",
+    "note": "The vernalization switch. FLC represses flowering, and a long winter progressively silences it through an epigenetic mechanism that in effect counts cold days — so the plant flowers in spring rather than during a warm week in January. Natural variation here separates rapid-cycling accessions from winter annuals."
+  },
+  {
+    "label": "FRI",
+    "gene": "AT4G00650",
+    "region": "4:266000-274000",
+    "title": "FRIGIDA",
+    "note": "Sets how high FLC starts. Functional FRI plus functional FLC makes a winter annual that cannot flower without cold; most rapid-cycling accessions carry FRI alleles broken in one way or another. Together with FLC, the best-studied natural variation in any plant."
+  },
+  {
+    "label": "CBF",
+    "gene": "AT4G25470",
+    "region": "4:13012000-13026000",
+    "title": "CBF1 / CBF2 / CBF3 cluster",
+    "note": "Three transcription factors sitting in tandem across 8 kb, switched on within minutes of cold and driving the freezing-tolerance program that rebuilds membrane chemistry. Loss-of-function CBF2 alleles are documented in warm-origin populations that no longer need it."
+  },
+  {
+    "label": "CMT2",
+    "gene": "AT4G19020",
+    "region": "4:10411000-10424000",
+    "title": "CHROMOMETHYLASE 2",
+    "note": "A DNA methyltransferase whose natural variants track temperature at the site of origin and shift methylation across the whole genome. One of the clearest cases of a climate-associated allele with a genome-wide consequence."
+  },
+  {
+    "label": "PHYB",
+    "gene": "AT2G18790",
+    "region": "2:8136000-8148000",
+    "title": "PHYTOCHROME B",
+    "note": "The red / far-red photoreceptor. It reads light quality to tell whether a neighbour is shading the plant, and doubles as a thermometer — the rate at which it reverts to its inactive form depends on temperature, so the same molecule reports both light and warmth."
+  },
+  {
+    "label": "CRY2",
+    "gene": "AT1G04400",
+    "region": "1:1182000-1192000",
+    "title": "CRYPTOCHROME 2",
+    "note": "A blue-light photoreceptor feeding the photoperiod pathway. Natural variation at CRY2 shifts flowering time, and does so differently under short and long days."
+  },
+  {
+    "label": "GI",
+    "gene": "AT1G22770",
+    "region": "1:8058000-8071000",
+    "title": "GIGANTEA",
+    "note": "A circadian clock component that connects the clock to both photoperiodic flowering and freezing tolerance — one of the places where the light pathway and the cold pathway are physically the same machinery."
+  },
+  {
+    "label": "CO",
+    "gene": "AT5G15840",
+    "region": "5:5167000-5176000",
+    "title": "CONSTANS",
+    "note": "How the plant measures day length. CO protein survives only when light and the circadian clock coincide, so it accumulates under long days and is destroyed under short ones. Day-length sensing reduced to a stability problem."
+  },
+  {
+    "label": "FT",
+    "gene": "AT1G65480",
+    "region": "1:24328000-24337000",
+    "title": "FLOWERING LOCUS T",
+    "note": "Florigen — the mobile signal made in the leaf that travels to the shoot tip and commits the plant to flowering. Both the photoperiod pathway and the vernalization pathway converge here, which makes it the output of everything else in this list."
+  }
+]
