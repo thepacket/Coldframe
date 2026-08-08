@@ -271,6 +271,18 @@ function rebuild() {
 
   view = buildView(artifact, axis, count, rankBy);
 
+  // Both vertical cursors exist from the moment data lands. Leaving them null
+  // until a click meant the crossing readout was simply blank on arrival - the
+  // panel drew two axes and reported neither. Middle of each, so the markers
+  // are visible rather than pinned to an edge.
+  if (selectedBand === null && view.bands.length > 0) {
+    selectedBand = Math.floor(view.bands.length / 2);
+  }
+  if (selectedAccession === null && view.rows.length > 0) {
+    selectedAccession = (view.rows[Math.floor(view.rows.length / 2)] as (typeof view.rows)[number])
+      .accession.id;
+  }
+
   const testable = (artifact.cline[axis] ?? []).filter((r) => r !== null).length;
   el('locus-counts').textContent =
     `${artifact.accessions.length} accessions · ` +
@@ -295,7 +307,12 @@ const fmt = (v: number, digits = 2) =>
 const kept = (within: number | null, raw: number | null) => {
   if (within === null || raw === null) return '&mdash;';
   if (Math.abs(raw) < 0.1) return within.toFixed(3);
-  return `${within.toFixed(3)} (${Math.round((within / raw) * 100)}% kept)`;
+  const ratio = within / raw;
+  // Above 1 the control did not weaken the signal, it strengthened it, and
+  // "114% kept" is nonsense. Say what actually happened instead.
+  if (ratio > 1) return `${within.toFixed(3)} (holds up)`;
+  if (ratio < 0) return `${within.toFixed(3)} (reverses)`;
+  return `${within.toFixed(3)} (${Math.round(ratio * 100)}% kept)`;
 };
 
 /**
