@@ -37,10 +37,10 @@ function applyTheme(theme: 'light' | 'dark') {
   if (view) render();
 }
 
-applyTheme(
-  (localStorage.getItem('coldframe-theme') as 'light' | 'dark' | null) ??
-    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
-);
+// Dark by default, deliberately - not a follow-the-system fallback. The panel
+// is a dense field of colour-as-data, and it holds contrast better against a
+// dark ground. Light stays available and honours a previous choice.
+applyTheme((localStorage.getItem('coldframe-theme') as 'light' | 'dark' | null) ?? 'dark');
 
 el('theme').addEventListener('click', () => {
   applyTheme(document.documentElement.dataset['theme'] === 'dark' ? 'light' : 'dark');
