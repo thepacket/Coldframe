@@ -51,8 +51,9 @@ which release folder a file happens to sit in, undocumented) or NCBI RefSeq
 (whose chromosomes are named `NC_003070.9` rather than `1`–`5`, which our VCFs
 use).
 
-The full callset is a 19 GB VCF. Coldframe never downloads it — loci are pulled
-region-by-region from the VCFSubset API, a few seconds and a few megabytes each.
+The full callset is a 19 GB VCF. Nothing ever downloads it — your browser pulls
+one region at a time from the VCFSubset API, a few seconds and a few megabytes
+each.
 
 ### Identifier quirks
 
@@ -64,32 +65,6 @@ The accession id is the join key, spelled differently in each source:
 
 Of the 727 accessions with expression data, 63 are absent from AraCLIM's 1,131
 geo-referenced accessions, which is where 664 comes from.
-
-## Usage
-
-```bash
-./scripts/fetch-raw.sh          # ~40s, ~100MB into data/raw
-node scripts/build-all.mjs      # every locus in loci.json, plus index.json
-```
-
-Each locus writes `data/derived/<label>.json` — the roster with climate and
-expression, the segregating sites with allele frequencies, per-site
-environmental correlations, band aggregates, and a genotype string per site
-(one character per accession, aligned to the roster).
-
-`build-locus.mjs` builds a single locus if you want one:
-
-```bash
-node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC
-```
-
-Curated loci live in [loci.json](loci.json) — gene, region, and a note on what
-the gene does. Add an entry, rerun both scripts, and it appears in the app.
-
-`data/` is disposable and regenerable; don't commit it.
-
-The embedded coastline is prebuilt and committed. To regenerate it, download
-Natural Earth `ne_110m_land.geojson` and run `node scripts/build-coastline.mjs`.
 
 ## Nothing is packaged
 
@@ -127,13 +102,21 @@ npm install
 npm run dev
 ```
 
-That is the whole thing — no scripts, no data step. The browser assembles each
-locus from the source archives on first visit.
+That is the whole thing — no scripts, no data step, nothing to download first.
+The browser assembles each locus from the source archives on first visit and
+caches it.
 
-The node pipeline under `scripts/` still exists as optional local tooling: it
-produces the same artifacts on disk for offline work, diagnostics, and the
-preview renderer, and it remains the reference implementation the browser port
-is checked against.
+**Adding a gene:** one entry in [loci.json](loci.json) — label, AGI code,
+region, and a note on what the gene does. It appears in the app on reload. No
+rebuild, because there is nothing to rebuild.
+
+The node pipeline under `scripts/` is optional local tooling, not part of
+running the app. It writes the same artifacts to disk for offline work and for
+`preview-matrix.mjs`, and it stays the reference implementation that
+`src/data/compute.ts` is checked against. Anything it writes lands in `data/`,
+which is gitignored and never shipped. The embedded coastline is the one
+prebuilt asset: it is committed, and `build-coastline.mjs` regenerates it from
+Natural Earth's `ne_110m_land.geojson` if ever needed.
 
 ## The panel
 
@@ -294,16 +277,13 @@ with no statistical justification, held in place by band frequencies being
 precomputed for exactly 48 sites. Bands are now computed live from the genotype
 matrix, so the constraint is gone.
 
-Bands are computed live from the genotype matrix, which the browser always
-has.
-
 Which sites appear first still depends on the ranking, and the two rankings
 disagree hard enough that the strongest expression effect was unreachable in
 five of nine loci until the ranking became switchable.
 
 **Ten environmental measures out of 212.** AraCLIM ships 212 columns;
-[loci.json](loci.json)'s companion list in `build-locus.mjs` uses ten, chosen
-for relevance to cold and light. So every "strongest gradient" in this
+`CLIMATE_VARS` in `src/data/parse.ts` picks ten, chosen for relevance to cold
+and light. So every "strongest gradient" in this
 repository means *strongest among those ten*, including the *PHYB* insolation
 result — and if the real driver is one of the other 202, Coldframe cannot see
 it.
