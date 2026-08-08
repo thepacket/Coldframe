@@ -26,16 +26,25 @@ picture, different question.
 
 ## The data
 
-Four sources, joined on the accession id. **664 accessions** carry all four.
+Joined on the accession id. **664 accessions** carry every layer.
 
-| Layer | Source | Notes |
+| Layer | Source | Terms |
 |---|---|---|
-| Accessions | 1001 Genomes `tg_accessions` | 1,135 rows: name, country, lat/lng, admixture group |
-| Climate | [AraCLIM](https://github.com/CLIMtools/AraCLIM) | 200+ geo-climate variables for 1,131 geo-referenced accessions |
-| Expression | [GEO GSE80744](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE80744) | 1001 Transcriptomes, rosette leaf, 727 accessions |
-| Genotypes | [VCFSubset API](https://tools.1001genomes.org/vcfsubset/) | per-locus slices of the 1001 Genomes v3.1 callset |
+| Roster + climate | [AraCLIM](https://github.com/CLIMtools/AraCLIM) | Apache-2.0 |
+| Expression | [GEO GSE80744](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE80744) | public domain |
+| Annotation | [Ensembl Plants](https://plants.ensembl.org/) TAIR10 | unrestricted |
+| Genotypes | [VCFSubset API](https://tools.1001genomes.org/vcfsubset/) | **unclear — not redistributed** |
 
 Everything is on TAIR10, so there is no assembly reconciliation to do.
+
+AraCLIM supplies the roster as well as the climate variables — id, name, country,
+lat/lng, admixture group — so Coldframe doesn't need the 1001 Genomes accession
+table. One fewer source, and this one has terms in writing.
+
+Annotation comes from Ensembl Plants rather than TAIR (whose terms depend on
+which release folder a file happens to sit in, undocumented) or NCBI RefSeq
+(whose chromosomes are named `NC_003070.9` rather than `1`–`5`, which our VCFs
+use).
 
 The full callset is a 19 GB VCF. Coldframe never downloads it — loci are pulled
 region-by-region from the VCFSubset API, a few seconds and a few megabytes each.
@@ -44,13 +53,12 @@ region-by-region from the VCFSubset API, a few seconds and a few megabytes each.
 
 The accession id is the join key, spelled differently in each source:
 
-- 1001G accessions csv — bare (`88`), headerless, positional columns
-- AraCLIM — bare, in a column named `id`
+- AraCLIM — bare (`88`), in a column named `id`
 - Expression matrix — X-prefixed (`X88`), from R's `make.names` on numeric headers
 - VCF — bare, in the `#CHROM` sample columns
 
-Of the 727 accessions with expression data, 62 are absent from the 1,135-accession
-genome panel and one more from AraCLIM, which is where 664 comes from.
+Of the 727 accessions with expression data, 63 are absent from AraCLIM's 1,131
+geo-referenced accessions, which is where 664 comes from.
 
 ## Usage
 
@@ -60,8 +68,12 @@ node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC
 ```
 
 Writes `data/derived/flc.json` — the roster with climate and expression, the
-segregating sites, and a genotype string per site (one character per accession,
-aligned to the roster).
+segregating sites with allele frequencies, per-site environmental correlations,
+and a genotype string per site (one character per accession, aligned to the
+roster).
+
+Add `--public` to build a shippable artifact. It writes `flc.public.json`,
+identical but with the genotype matrix omitted. See [Licence](#licence).
 
 `data/` is disposable and regenerable; don't commit it.
 
@@ -73,23 +85,47 @@ disabled; see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Licence
 
 The code is [MIT](LICENSE). Every dependency it plans to use — `@gmod/tabix`,
-`@gmod/vcf`, `@gmod/bbi`, `@gmod/gff`, `igv.js`, `gosling.js` — is also MIT, so
-nothing blocks that.
+`@gmod/vcf`, `@gmod/bbi`, `@gmod/gff`, `igv.js`, `gosling.js` — is also MIT.
 
-**The data is not covered by that licence and carries its own terms.** Nothing
-in `data/` is redistributed today, so no obligation is triggered yet. That
-changes the moment Coldframe ships precomputed locus artifacts as a static
-bundle, which is the plan. Before that happens:
+**The data is not covered by that licence.** Per-source terms live in
+[data-sources.json](data-sources.json), which the build script reads to decide
+what may be published; attribution is in [NOTICE](NOTICE).
 
-- **AraCLIM** is Apache-2.0. Derived artifacts need the attribution and notice
-  that licence requires, and that portion can't be relicensed as MIT.
-- **1001 Genomes** and **GEO GSE80744** are open, but both expect citation of
-  the papers rather than bare reuse.
+The plan is to ship precomputed loci as a static bundle, which is redistribution.
+Three of the four sources permit it with attribution. The fourth doesn't say.
+
+The 1001 Genomes policy is a Fort Lauderdale-style pre-publication clause — no
+whole-genome-scale analysis published ahead of the consortium — which the 2016
+*Cell* paper discharges in substance. A 12 kb locus is also a vanishing fraction
+of a 19 GB callset. So redistributing it is *probably* fine. But "probably"
+shouldn't be load-bearing in a public repository.
+
+So the design doesn't decide. It makes the decision cheap:
+
+- Artifacts split into a part that always ships and a part that's gated.
+  Per-accession genotype calls are gated; everything else ships.
+- `--public` omits the gated part. What remains includes per-site allele
+  frequencies and environmental correlations computed *from* the calls — facts
+  about the data rather than a subset of it.
+- Anyone can reconstruct the full artifact locally by running
+  `scripts/fetch-raw.sh`, which pulls genotypes from the source API directly.
+- If the terms are ever confirmed in writing, dropping `--public` is the entire
+  change.
+
+For FLC that costs 1.0 MB → 412 KB and loses none of the science: 142 testable
+sites survive with their clines intact.
+
+This is a good-faith reading of published terms, not legal advice.
 
 ## Validation
 
-The join is checked by whether it produces biology rather than by row counts. At
-FLC — the vernalization gene, where the literature describes a latitudinal
-cline — the strongest site is **5:3,177,289 (A>C), correlating with latitude at
-r = 0.42** across 664 accessions. That position falls inside the gene. Shuffled
+The join is checked by whether it produces biology rather than by row counts.
+At FLC — the vernalization gene, where the literature describes a latitudinal
+cline — the strongest association across 974 segregating sites is **5:3,181,243
+correlating with spring night temperature at r = −0.43**, with **5:3,177,289
+(A>C) at r = 0.42 against raw latitude**. Both fall in the locus, and
+temperature outperforming latitude is the right way round: latitude is a proxy,
+night temperature is closer to the mechanism.
+
+Accessions span 15.1°N to 68.8°N — Cape Verde to northern Scandinavia. Shuffled
 identifiers would not exceed roughly r = 0.15.

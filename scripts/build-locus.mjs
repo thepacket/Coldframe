@@ -1,17 +1,20 @@
-// Joins one locus across the four Coldframe sources into a single artifact.
+// Joins one locus across the Coldframe sources into a single artifact.
 //
-//   usage: node scripts/build-locus.mjs <gene_id> <chrom:start-end> [label]
+//   usage: node scripts/build-locus.mjs <gene_id> <chrom:start-end> [label] [--public]
 //   e.g.   node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC
 //
-// Sources (all under data/raw, see scripts/fetch-raw.sh):
-//   accessions_1001g.csv  - id, name, country, lat/lng, admixture group
-//   araclim_climatesd.csv - 200+ geo-climate variables per accession
-//   GSE80744_*.tsv.gz     - normalised expression, one column per accession
-//   <locus>.vcf.gz        - all-sites VCF from the VCFSubset API
+// Sources and their redistribution terms live in data-sources.json. Anything
+// marked redistribute:false contributes derived statistics to the artifact but
+// never raw per-accession values, so a --public build is safe to ship.
 //
-// The accession id is the join key everywhere, but each source spells it
-// differently: bare in the 1001G csv, bare in AraCLIM's `id` column, and
-// X-prefixed in the expression matrix (R's make.names on numeric headers).
+// Today that means genotype calls: the 1001 Genomes policy grants no explicit
+// redistribution right, so `--public` omits the genotype matrix and keeps the
+// per-site statistics computed from it. Allele frequencies and cline
+// correlations are facts about the data rather than a subset of it.
+//
+// The accession id is the join key. Each source spells it differently: bare in
+// AraCLIM's `id` column, X-prefixed in the expression matrix (R's make.names on
+// numeric headers), bare in the VCF sample columns.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -20,9 +23,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'data', 'raw');
+const EXPRESSION_FILE = 'GSE80744_ath1001_tx_norm_2016-04-21-UQ_gNorm_normCounts_k4.tsv.gz';
 
-// Climate variables kept in the artifact. The full AraCLIM table has 200+;
-// these are the ones this project actually sorts and colours by.
+// Climate variables kept in the artifact. AraCLIM has 200+; these are the ones
+// this project actually sorts and colours by.
 const CLIMATE_VARS = [
   'Solar_insolation_spring',
   'Solar_insolation_summer',
@@ -35,6 +39,11 @@ const CLIMATE_VARS = [
   'Aridity_index',
   'SRTM_elevation',
 ];
+
+// Sites rarer than this are dropped from the cline statistics - a correlation
+// carried by a handful of accessions is noise, not a gradient.
+const MIN_ALT_FREQ = 0.05;
+const MIN_CALLED = 300;
 
 /** Minimal RFC4180-ish splitter: handles quoted fields, no embedded newlines. */
 function splitCsvLine(line) {
@@ -61,57 +70,53 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-/** 1001G accession table. Headerless; column order is positional. */
-function loadAccessions() {
-  const text = readFileSync(join(RAW, 'accessions_1001g.csv'), 'utf8');
-  const byId = new Map();
-  for (const line of text.split('\n')) {
-    if (!line.trim()) continue;
-    const f = splitCsvLine(line);
-    byId.set(f[0], {
-      id: f[0],
-      name: f[2],
-      country: f[3],
-      lat: num(f[5]),
-      lng: num(f[6]),
-      group: f[10] || null,
-    });
-  }
-  return byId;
-}
-
-/** AraCLIM wide table, keyed by its `id` column. */
-function loadClimate() {
+/**
+ * AraCLIM supplies both the roster and the climate table. It carries lng, lat,
+ * id, name, country and admixture group alongside the environmental variables,
+ * which is why Coldframe doesn't need the 1001 Genomes accession table - one
+ * fewer source, and this one is Apache-2.0 rather than unclear.
+ */
+function loadRosterAndClimate() {
   const lines = readFileSync(join(RAW, 'araclim_climatesd.csv'), 'utf8').split('\n');
   const header = splitCsvLine(lines[0]);
-  const idCol = header.indexOf('id');
-  const cols = CLIMATE_VARS.map((v) => {
-    const i = header.indexOf(v);
-    if (i === -1) throw new Error(`AraCLIM is missing column "${v}"`);
-    return [v, i];
-  });
+  const col = (n) => {
+    const i = header.indexOf(n);
+    if (i === -1) throw new Error(`AraCLIM is missing column "${n}"`);
+    return i;
+  };
+  const idx = {
+    id: col('id'), name: col('name'), country: col('country'),
+    lat: col('lat'), lng: col('lng'), group: col('group'),
+  };
+  const climateCols = CLIMATE_VARS.map((v) => [v, col(v)]);
 
   const byId = new Map();
   for (let n = 1; n < lines.length; n++) {
     if (!lines[n].trim()) continue;
     const f = splitCsvLine(lines[n]);
-    byId.set(f[idCol], Object.fromEntries(cols.map(([v, i]) => [v, num(f[i])])));
+    byId.set(f[idx.id], {
+      id: f[idx.id],
+      name: f[idx.name],
+      country: f[idx.country],
+      lat: num(f[idx.lat]),
+      lng: num(f[idx.lng]),
+      group: f[idx.group] || null,
+      climate: Object.fromEntries(climateCols.map(([v, i]) => [v, num(f[i])])),
+    });
   }
   return byId;
 }
 
 /**
  * One gene's row from the expression matrix. The file is ~26MB gzipped and we
- * want a single row, so scan line-by-line rather than parsing the whole table.
+ * want a single row, so find it by string search rather than parsing the table.
  */
 function loadExpression(geneId) {
-  const text = gunzipSync(readFileSync(join(RAW, expressionFile()))).toString('utf8');
+  const text = gunzipSync(readFileSync(join(RAW, EXPRESSION_FILE))).toString('utf8');
   const nl = text.indexOf('\n');
-  // Header starts with `gene_id`, then one X-prefixed accession id per column.
   const ids = text.slice(0, nl).trim().split('\t').slice(1).map((h) => h.replace(/^X/, ''));
 
-  const needle = `\n${geneId}\t`;
-  const at = text.indexOf(needle);
+  const at = text.indexOf(`\n${geneId}\t`);
   if (at === -1) throw new Error(`gene ${geneId} not found in expression matrix`);
   const end = text.indexOf('\n', at + 1);
   const values = text.slice(at + 1, end === -1 ? undefined : end).trim().split('\t').slice(1);
@@ -121,13 +126,9 @@ function loadExpression(geneId) {
   return byId;
 }
 
-function expressionFile() {
-  return 'GSE80744_ath1001_tx_norm_2016-04-21-UQ_gNorm_normCounts_k4.tsv.gz';
-}
-
 /**
- * All-sites VCF from VCFSubset. Keeps only segregating sites (ALT !== '.') and
- * encodes each genotype as one character: 0 hom-ref, 1 het, 2 hom-alt, . missing.
+ * All-sites VCF from VCFSubset. Keeps only segregating sites and encodes each
+ * genotype as one character: 0 hom-ref, 1 het, 2 hom-alt, . missing.
  */
 function loadGenotypes(vcfPath) {
   const lines = gunzipSync(readFileSync(vcfPath)).toString('utf8').split('\n');
@@ -158,49 +159,120 @@ function encodeGt(field) {
   return '1';
 }
 
+function pearson(x, y) {
+  const n = x.length;
+  let sx = 0, sy = 0;
+  for (let i = 0; i < n; i++) { sx += x[i]; sy += y[i]; }
+  const mx = sx / n, my = sy / n;
+  let cov = 0, vx = 0, vy = 0;
+  for (let i = 0; i < n; i++) {
+    const u = x[i] - mx, v = y[i] - my;
+    cov += u * v; vx += u * u; vy += v * v;
+  }
+  const d = Math.sqrt(vx * vy);
+  return d === 0 ? null : cov / d;
+}
+
+const round = (v, p = 4) => (v === null ? null : Number(v.toFixed(p)));
+
 // ---------------------------------------------------------------------------
 
-const [geneId, region, label] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const publicBuild = args.includes('--public');
+const [geneId, region, label] = args.filter((a) => !a.startsWith('--'));
+
 if (!geneId || !region) {
-  console.error('usage: node scripts/build-locus.mjs <gene_id> <chrom:start-end> [label]');
+  console.error('usage: node scripts/build-locus.mjs <gene_id> <chrom:start-end> [label] [--public]');
   process.exit(1);
 }
 const [chrom, span] = region.split(':');
 const [start, end] = span.split('-').map(Number);
 const name = label ?? geneId;
 
-const accessions = loadAccessions();
-const climate = loadClimate();
+const sources = JSON.parse(readFileSync(join(ROOT, 'data-sources.json'), 'utf8'));
+const roster = loadRosterAndClimate();
 const expression = loadExpression(geneId);
 const { sampleIds, sites, rows } = loadGenotypes(join(RAW, `${name.toLowerCase()}_664.vcf.gz`));
 
-// Keep only accessions present in all four sources, and remember each one's
-// column index in the VCF so genotype strings stay aligned with the roster.
+// Keep accessions present in every source, remembering each one's VCF column so
+// genotype strings stay aligned with the roster order.
 const kept = [];
 sampleIds.forEach((id, col) => {
-  const acc = accessions.get(id);
-  const clim = climate.get(id);
+  const acc = roster.get(id);
   const expr = expression.get(id);
-  if (!acc || !clim || expr === undefined) return;
-  kept.push({ col, ...acc, expression: expr, climate: clim });
+  if (!acc || expr === undefined) return;
+  kept.push({ col, ...acc, expression: expr });
 });
+
+// Per-site statistics. These are computed from the genotype matrix but are not
+// a subset of it, so they ship even when the matrix itself cannot.
+const cline = Object.fromEntries([['lat', []], ...CLIMATE_VARS.map((v) => [v, []])]);
+const siteStats = rows.map((row, si) => {
+  const calls = kept.map(({ col }) => row[col]);
+  const dosage = calls.map((c) => (c === '.' ? null : c === '0' ? 0 : c === '1' ? 1 : 2));
+  const called = dosage.filter((d) => d !== null).length;
+  const altFreq = called === 0 ? 0 : dosage.reduce((s, d) => s + (d ?? 0), 0) / (2 * called);
+
+  const testable = called >= MIN_CALLED && altFreq >= MIN_ALT_FREQ && altFreq <= 1 - MIN_ALT_FREQ;
+  for (const axis of Object.keys(cline)) {
+    if (!testable) { cline[axis].push(null); continue; }
+    const g = [], e = [];
+    kept.forEach((acc, i) => {
+      const v = axis === 'lat' ? acc.lat : acc.climate[axis];
+      if (dosage[i] !== null && v !== null) { g.push(dosage[i]); e.push(v); }
+    });
+    cline[axis].push(g.length < MIN_CALLED ? null : round(pearson(g, e)));
+  }
+
+  return { ...sites[si], altFreq: round(altFreq, 4), called };
+});
+
+const used = ['araclim', 'gse80744', ...(publicBuild ? [] : ['1001genomes'])];
+const restricted = Object.entries(sources)
+  .filter(([k, v]) => k !== '_comment' && !v.redistribute)
+  .map(([k]) => k);
 
 const artifact = {
   locus: { gene: geneId, label: name, chrom, start, end },
   generated: new Date().toISOString().slice(0, 10),
+  provenance: {
+    redistributable: publicBuild,
+    sources: Object.fromEntries(
+      used.map((k) => [k, { name: sources[k].name, license: sources[k].license, cite: sources[k].cite }]),
+    ),
+    ...(publicBuild
+      ? { omitted: `per-accession genotype calls (${restricted.join(', ')}: no explicit redistribution grant)` }
+      : { warning: 'contains genotype calls - local use only, do not publish. Rebuild with --public to ship.' }),
+  },
   climateVars: CLIMATE_VARS,
   accessions: kept.map(({ col, ...a }) => a),
-  sites,
+  sites: siteStats,
+  // Correlation of allele dosage with each environmental axis, per site.
+  // null where the site is too rare or too poorly called to test.
+  cline,
   // One string per site, one character per accession, in `accessions` order.
-  genotypes: rows.map((row) => kept.map(({ col }) => row[col]).join('')),
+  ...(publicBuild ? {} : { genotypes: rows.map((row) => kept.map(({ col }) => row[col]).join('')) }),
 };
 
 mkdirSync(join(ROOT, 'data', 'derived'), { recursive: true });
-const out = join(ROOT, 'data', 'derived', `${name.toLowerCase()}.json`);
+const out = join(ROOT, 'data', 'derived', `${name.toLowerCase()}${publicBuild ? '.public' : ''}.json`);
 writeFileSync(out, JSON.stringify(artifact));
 
 const dropped = sampleIds.length - kept.length;
-console.log(`${name} (${geneId})  ${chrom}:${start}-${end}`);
+const strongest = Object.entries(cline)
+  .map(([axis, rs]) => {
+    let bi = -1;
+    rs.forEach((r, i) => { if (r !== null && (bi === -1 || Math.abs(r) > Math.abs(rs[bi]))) bi = i; });
+    return bi === -1 ? null : { axis, r: rs[bi], pos: siteStats[bi].pos };
+  })
+  .filter(Boolean)
+  .sort((a, b) => Math.abs(b.r) - Math.abs(a.r))[0];
+
+console.log(`${name} (${geneId})  ${chrom}:${start}-${end}${publicBuild ? '  [public]' : ''}`);
 console.log(`  accessions : ${kept.length} joined${dropped ? `, ${dropped} dropped` : ''}`);
-console.log(`  sites      : ${sites.length} segregating`);
+console.log(`  sites      : ${siteStats.length} segregating`);
+if (strongest) {
+  console.log(`  strongest  : r=${strongest.r} vs ${strongest.axis} at ${chrom}:${strongest.pos}`);
+}
+console.log(`  genotypes  : ${publicBuild ? 'omitted (not redistributable)' : 'included (local only)'}`);
 console.log(`  wrote      : ${out}`);

@@ -8,14 +8,12 @@ cd "$(dirname "$0")/.."
 mkdir -p data/raw
 cd data/raw
 
-# Accession roster: id, name, country, lat/lng, admixture group. 1135 rows,
-# headerless. The `query` parameter is required or the API returns 400.
-echo "accessions..."
-curl -sS --max-time 60 -o accessions_1001g.csv \
-  "https://tools.1001genomes.org/api/accessions.csv?query=SELECT%20*%20FROM%20tg_accessions"
-
-# AraCLIM: 200+ geo-climate variables for the 1131 geo-referenced accessions.
-echo "climate..."
+# AraCLIM: 200+ geo-climate variables for the 1131 geo-referenced accessions,
+# plus the roster itself - id, name, country, lat/lng, admixture group. That
+# overlap is why Coldframe doesn't pull the 1001 Genomes accession table: one
+# fewer source, and this one is Apache-2.0 rather than unclear. See
+# data-sources.json.
+echo "roster + climate..."
 curl -sSL --max-time 120 -o araclim_climatesd.csv \
   "https://raw.githubusercontent.com/CLIMtools/AraCLIM/master/data/shiny%20climatesd.csv"
 curl -sSL --max-time 60 -o araclim_datadescription.csv \
@@ -26,15 +24,16 @@ echo "expression (26MB)..."
 curl -sSL --max-time 600 -O \
   "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE80nnn/GSE80744/suppl/GSE80744_ath1001_tx_norm_2016-04-21-UQ_gNorm_normCounts_k4.tsv.gz"
 
-# The 664 accessions carried by all three sources above. Derived rather than
-# downloaded, so the locus pulls below request exactly the joinable set.
+# The accessions carried by both sources above. Derived rather than downloaded,
+# so the locus pulls below request exactly the joinable set. The expression
+# matrix spells ids X-prefixed (R's make.names on numeric headers); AraCLIM
+# spells them bare.
 echo "resolving the joinable accession set..."
 gzcat GSE80744_*.tsv.gz | head -1 | tr '\t' '\n' | tail -n +2 | sed 's/^X//' | sort -u > .expr_ids
-cut -d, -f1 accessions_1001g.csv | tr -d '"' | sort -u > .acc_ids
 awk -F, 'NR>1{gsub(/"/,"",$3); print $3}' araclim_climatesd.csv | sort -u > .clim_ids
-comm -12 .expr_ids .acc_ids | comm -12 - .clim_ids | sort -n > accessions_664.txt
-rm -f .expr_ids .acc_ids .clim_ids
-echo "  $(wc -l < accessions_664.txt) accessions in all three sources"
+comm -12 .expr_ids .clim_ids | sort -n > accessions_664.txt
+rm -f .expr_ids .clim_ids
+echo "  $(wc -l < accessions_664.txt) accessions in both sources"
 
 # Per-locus genotypes from the VCFSubset API.
 #

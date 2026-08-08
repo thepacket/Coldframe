@@ -1,0 +1,53 @@
+{
+  "_comment": [
+    "Redistribution terms for everything Coldframe builds on. The build script",
+    "reads this to decide what may go into a published bundle: any source with",
+    "redistribute=false contributes derived statistics only, never raw values.",
+    "",
+    "This is a good-faith reading of published terms, not legal advice. Where a",
+    "source is ambiguous it is marked false, because the cost of being wrong is",
+    "asymmetric and the cost of being cautious is one build flag."
+  ],
+
+  "araclim": {
+    "name": "AraCLIM (Arabidopsis CLIMtools)",
+    "url": "https://github.com/CLIMtools/AraCLIM",
+    "cite": "Ferrero-Serrano & Assmann 2019, Nature Communications",
+    "license": "Apache-2.0",
+    "redistribute": true,
+    "requires": "Attribution and licence notice in derived artifacts; the AraCLIM portion cannot be relicensed as MIT. See NOTICE.",
+    "provides": ["roster", "geography", "climate"]
+  },
+
+  "gse80744": {
+    "name": "1001 Transcriptomes (GEO GSE80744)",
+    "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE80744",
+    "cite": "Kawakatsu et al. 2016, Cell 166:492-505",
+    "license": "US Government work, public domain (NCBI)",
+    "redistribute": true,
+    "requires": "Citation of the source publication.",
+    "provides": ["expression"]
+  },
+
+  "ensembl_plants": {
+    "name": "Ensembl Plants, Arabidopsis thaliana TAIR10",
+    "url": "https://ftp.ebi.ac.uk/ensemblgenomes/pub/plants/current/gff3/arabidopsis_thaliana/",
+    "cite": "Ensembl Genomes",
+    "license": "No restrictions on use or redistribution",
+    "redistribute": true,
+    "requires": "Attribution.",
+    "provides": ["annotation"],
+    "note": "Preferred over TAIR direct (terms depend on which release folder a file sits in, undocumented) and over NCBI RefSeq (chromosome naming is NC_003070.9 rather than 1-5, which our VCFs use)."
+  },
+
+  "1001genomes": {
+    "name": "1001 Genomes, v3.1 callset",
+    "url": "https://1001genomes.org/",
+    "cite": "1001 Genomes Consortium 2016, Cell 166:481-491",
+    "license": "unclear",
+    "redistribute": false,
+    "requires": "Confirm with the consortium before redistributing genotype calls.",
+    "provides": ["genotypes"],
+    "note": "The published policy is a Fort Lauderdale-style pre-publication clause: no whole-genome-scale analysis published ahead of the consortium. The 2016 Cell paper discharges that in substance, and a locus slice is a vanishing fraction of a 19GB callset. But no explicit redistribution grant exists, so genotype calls stay out of published bundles until someone confirms in writing."
+  }
+}

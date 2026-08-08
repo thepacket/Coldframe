@@ -1,0 +1,52 @@
+Coldframe
+Copyright (c) 2026 Andre Paquette
+
+This product is licensed under the MIT License (see LICENSE).
+
+------------------------------------------------------------------------------
+Third-party data
+------------------------------------------------------------------------------
+
+Coldframe's code is MIT licensed. The scientific data it processes is not, and
+carries its own terms. Redistribution terms per source are recorded in
+data-sources.json, which the build script reads to decide what may be published.
+
+Artifacts built by scripts/build-locus.mjs contain material derived from:
+
+1. AraCLIM (Arabidopsis CLIMtools)
+   https://github.com/CLIMtools/AraCLIM
+   Licensed under the Apache License, Version 2.0.
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Coldframe uses the geo-climate variable table and accession roster. Values
+   are subset and reformatted; they are not otherwise modified. This portion
+   remains under Apache-2.0 and is not relicensed as MIT.
+
+   Cite: Ferrero-Serrano, A. & Assmann, S.M. (2019). Phenotypic and genome-wide
+   association with the local environment of Arabidopsis. Nature Communications.
+
+2. 1001 Transcriptomes (NCBI GEO accession GSE80744)
+   https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE80744
+   US Government work; public domain.
+
+   Cite: Kawakatsu, T. et al. (2016). Epigenomic Diversity in a Global
+   Collection of Arabidopsis thaliana Accessions. Cell 166:492-505.
+
+3. Ensembl Plants, Arabidopsis thaliana TAIR10 annotation
+   https://plants.ensembl.org/
+   No restrictions on use or redistribution.
+
+------------------------------------------------------------------------------
+Not redistributed
+------------------------------------------------------------------------------
+
+1001 Genomes v3.1 genotype calls
+   https://1001genomes.org/
+   Cite: 1001 Genomes Consortium (2016). Cell 166:481-491.
+
+   No explicit redistribution grant exists for this callset, so per-accession
+   genotype calls are excluded from published Coldframe artifacts. Artifacts
+   built with --public carry per-site allele frequencies and environmental
+   correlations derived from the calls, which are facts about the data rather
+   than a subset of it. To obtain the calls themselves, run scripts/fetch-raw.sh,
+   which retrieves them from the 1001 Genomes VCFSubset API directly.
