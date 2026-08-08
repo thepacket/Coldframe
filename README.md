@@ -65,6 +65,27 @@ aligned to the roster).
 
 `data/` is disposable and regenerable; don't commit it.
 
+## Contributing
+
+Issues are welcome — corrections to the biology especially. Pull requests are
+disabled; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licence
+
+The code is [MIT](LICENSE). Every dependency it plans to use — `@gmod/tabix`,
+`@gmod/vcf`, `@gmod/bbi`, `@gmod/gff`, `igv.js`, `gosling.js` — is also MIT, so
+nothing blocks that.
+
+**The data is not covered by that licence and carries its own terms.** Nothing
+in `data/` is redistributed today, so no obligation is triggered yet. That
+changes the moment Coldframe ships precomputed locus artifacts as a static
+bundle, which is the plan. Before that happens:
+
+- **AraCLIM** is Apache-2.0. Derived artifacts need the attribution and notice
+  that licence requires, and that portion can't be relicensed as MIT.
+- **1001 Genomes** and **GEO GSE80744** are open, but both expect citation of
+  the papers rather than bare reuse.
+
 ## Validation
 
 The join is checked by whether it produces biology rather than by row counts. At
