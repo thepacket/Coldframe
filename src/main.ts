@@ -361,6 +361,57 @@ canvas.addEventListener('click', (e) => {
   render();
 });
 
+/**
+ * Left and right walk the selected site along the panel, in genomic order.
+ *
+ * They step through the displayed columns rather than every site in the
+ * region: the columns are the sites the current statistic can score, and
+ * stepping one at a time through a thousand mostly-untestable positions would
+ * be tedious. A site picked from the all-sites strip may not be a column, so
+ * the first press lands on the nearest one by position.
+ */
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  // Leave the dropdowns and the slider their own arrow behaviour.
+  const target = e.target as HTMLElement | null;
+  if (target && (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName) || target.isContentEditable)) {
+    return;
+  }
+  if (!view || view.columns.length === 0) return;
+
+  const step = e.key === 'ArrowRight' ? 1 : -1;
+  const at = view.columns.findIndex((c) => c.siteIndex === selectedSite);
+  let next: number;
+
+  if (at !== -1) {
+    next = at + step;
+  } else {
+    // Not on a column - the site came from the all-sites strip. Move to the
+    // next column in the direction pressed, so right never travels left.
+    const here = selectedSite === null ? null : (artifact.sites[selectedSite]?.pos ?? null);
+    if (here === null) {
+      next = step > 0 ? 0 : view.columns.length - 1;
+    } else if (step > 0) {
+      next = view.columns.findIndex((c) => c.site.pos > here);
+      if (next === -1) next = view.columns.length - 1;
+    } else {
+      next = -1;
+      view.columns.forEach((c, i) => { if (c.site.pos < here) next = i; });
+      if (next === -1) next = 0;
+    }
+  }
+
+  next = Math.max(0, Math.min(view.columns.length - 1, next));
+  const column = view.columns[next];
+  if (!column || column.siteIndex === selectedSite) return;
+
+  e.preventDefault();
+  selectedSite = column.siteIndex;
+  render();
+});
+
 mapCanvas.addEventListener('mousemove', (e) => {
   const rect = mapCanvas.getBoundingClientRect();
   const point = pickPoint(mapPoints, e.clientX - rect.left, e.clientY - rect.top);
