@@ -108,10 +108,13 @@ a locus takes a few seconds cold and is instant after.
 Coldframe therefore redistributes nothing, which dissolves the licensing
 question that shaped every earlier design: there is no `--public` build, no
 publish guard, and no view that exists only locally. The deployable app is
-three static files totalling ~120 KB, hostable anywhere. It is not currently
-deployed; the courtesy email to the 1001 Genomes group about API traffic is
-drafted and unsent, and hosting is one `fly deploy` away once that feels
-settled.
+three static files totalling ~120 KB, hostable anywhere.
+
+**Live at [coldframe.fly.dev](https://coldframe.fly.dev).** The server holds no
+data — a request for any data path gets the app shell back, because there is
+nothing else to serve. A courtesy email to the 1001 Genomes group about the API
+traffic this sends them is drafted, since each visitor's browser calls their
+VCFSubset endpoint directly.
 
 ## Running the app
 

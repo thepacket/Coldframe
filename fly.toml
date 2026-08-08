@@ -1,0 +1,26 @@
+# Static site: ~120KB of HTML, CSS and JS, and no data at all. The visitor's
+# browser fetches every source live from AraCLIM, NCBI GEO and the 1001
+# Genomes VCFSubset API, and computes the statistics locally - this server
+# never sees, stores, or serves a genotype.
+#
+# Deploy with:
+#   npm run build && fly deploy
+
+app = "coldframe"
+primary_region = "yyz"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Nothing is held in memory between requests, so idling to zero costs nothing
+  # but a cold start on the next visit.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
