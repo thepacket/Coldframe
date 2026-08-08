@@ -20,6 +20,9 @@
   /* Between reference and alternate in lightness, so a dark reference dot and a
      pale alternate dot are both legible against it. */
   --land: #ded7cb;
+  /* Cursor marks. Fluorescent green would glare on paper-white, so light theme
+     keeps ink; dark theme gets the fluo green, far outside every data ramp. */
+  --cursor: #23201c;
 
   --clim-cold: #315880;
   --clim-warm: #c86a3f;
@@ -46,6 +49,7 @@
   --gt-alt: #a8cde3;
   --gt-missing: #1f232a;
   --land: #363c44;
+  --cursor: #39ff14;
 
   --clim-cold: #6fa8dc;
   --clim-warm: #e08b5e;

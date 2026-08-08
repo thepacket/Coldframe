@@ -177,7 +177,7 @@ export function drawExpression(
       ctx.beginPath();
       ctx.arc(focused.x, focused.y, DOT_R + 3, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = p.ink;
+      ctx.strokeStyle = p.cursor;
       ctx.lineWidth = 1.6;
       ctx.stroke();
     }

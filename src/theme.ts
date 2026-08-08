@@ -12,6 +12,8 @@ export interface Palette {
   gtAlt: RGB;
   gtMissing: RGB;
   land: RGB;
+  /** Cursor marks - row rule, band box, column outline, rings. Never a data colour. */
+  cursor: string;
   climCold: RGB;
   climWarm: RGB;
   exprLo: RGB;
@@ -43,6 +45,7 @@ export function readPalette(): Palette {
     gtAlt: rgb('--gt-alt'),
     gtMissing: rgb('--gt-missing'),
     land: rgb('--land'),
+    cursor: raw('--cursor'),
     climCold: rgb('--clim-cold'),
     climWarm: rgb('--clim-warm'),
     exprLo: rgb('--expr-lo'),

@@ -128,7 +128,7 @@ export function drawMap(
   if (highlightId) {
     const focused = points.find((pt) => pt.accession.id === highlightId);
     if (focused) {
-      ctx.strokeStyle = p.ink;
+      ctx.strokeStyle = p.cursor;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(focused.x, focused.y, 7, 0, Math.PI * 2);

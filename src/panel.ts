@@ -266,13 +266,13 @@ export function draw(
     ctx.strokeStyle = p.panel;
     ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.strokeStyle = p.ink;
+    ctx.strokeStyle = p.cursor;
     ctx.lineWidth = 1;
     ctx.stroke();
 
     // A tick in the left margin, so the row is locatable when the matrix is
     // dense and the rule disappears into it.
-    ctx.fillStyle = p.ink;
+    ctx.fillStyle = p.cursor;
     ctx.fillRect(0, y - 2, 5, 4);
   }
 
@@ -283,10 +283,10 @@ export function draw(
     ctx.strokeStyle = p.panel;
     ctx.lineWidth = 3;
     ctx.strokeRect(-1.5, y - 0.5, L.width + 3, L.bandH + 1);
-    ctx.strokeStyle = p.ink;
+    ctx.strokeStyle = p.cursor;
     ctx.lineWidth = 1;
     ctx.strokeRect(-1.5, y - 0.5, L.width + 3, L.bandH + 1);
-    ctx.fillStyle = p.ink;
+    ctx.fillStyle = p.cursor;
     ctx.fillRect(0, y, 5, L.bandH);
   }
 
@@ -297,7 +297,7 @@ export function draw(
   if (selected !== null) {
     const site = view.allSites[selected];
     if (site) {
-      ctx.strokeStyle = p.ink;
+      ctx.strokeStyle = p.cursor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(Math.round(overviewX(site.pos)) + 0.5, L.overviewY);
@@ -311,7 +311,7 @@ export function draw(
     const bottom = view.hasGenotypes
       ? L.rowsY + view.rows.length * L.rowH
       : L.bandsY + view.bands.length * L.bandH;
-    ctx.strokeStyle = p.ink;
+    ctx.strokeStyle = p.cursor;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x - 0.75, L.clineY - 3.75, L.cellW + 1.5, bottom - L.clineY + 7.5);
 
