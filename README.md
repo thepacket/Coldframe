@@ -77,6 +77,43 @@ identical but with the genotype matrix omitted. See [Licence](#licence).
 
 `data/` is disposable and regenerable; don't commit it.
 
+## Running the app
+
+```bash
+npm install
+npm run dev
+```
+
+Vite serves `data/derived` directly, so the app picks up whichever artifact is
+there — the full one locally, the `--public` one otherwise. Without genotypes
+the banded panel still works; the per-accession panel says so and stands down.
+
+`npm run build` refuses to run while a non-publishable artifact is sitting in
+`data/derived`, because Vite would copy it into `dist/`. Build with `--public`
+and remove the local copy first.
+
+## The panel
+
+Three sections, sharing one set of columns — the sites with the strongest
+clines on the chosen axis, laid out in genomic order.
+
+- **Cline strength** — correlation per site. Warm bars mean the alternate
+  allele gets commoner as the axis rises; cool bars, the reverse.
+- **Climate bands** — accessions in 32 equal-count groups, each cell the
+  alternate allele frequency of that group. The overview, where the cline reads
+  at a glance.
+- **Accessions** — one row per plant, coldest at the top. The detail, where
+  haplotype structure and individual plants survive.
+
+Both left-hand strips carry the same two variables throughout: the ordering
+axis, and expression of the gene. Expression is ranked rather than scaled —
+at FLC it spans 2 to 25,609, and any linear or log ramp collapses to one
+colour.
+
+Showing all 974 segregating sites was tried and abandoned: at one pixel per
+site the informative columns vanish under rare variants. Site selection isn't
+an optimisation here, it's load-bearing.
+
 ## Contributing
 
 Issues are welcome — corrections to the biology especially. Pull requests are

@@ -227,6 +227,63 @@ const siteStats = rows.map((row, si) => {
   return { ...sites[si], altFreq: round(altFreq, 4), called };
 });
 
+// Per-band allele frequencies for the strongest sites on each axis.
+//
+// These matter for more than convenience. Without them a --public artifact
+// could show the cline statistic but not the picture of it, because binning
+// needs per-accession calls. A band frequency is an aggregate over ~20
+// accessions - a fact about the data, not a subset of it - so precomputing it
+// here lets the published build render the view that is the point of the
+// project, while the calls themselves stay out.
+const BANDS = 32;
+const BAND_SITES = 48;
+
+function bandsFor(axis) {
+  const ranked = kept
+    .map((acc, i) => ({ i, v: axis === 'lat' ? acc.lat : acc.climate[axis] }))
+    .filter((o) => o.v !== null)
+    .sort((p, q) => p.v - q.v);
+  if (ranked.length < BANDS) return null;
+
+  const siteIdx = siteStats
+    .map((_, i) => i)
+    .filter((i) => cline[axis][i] !== null)
+    .sort((a, b) => Math.abs(cline[axis][b]) - Math.abs(cline[axis][a]))
+    .slice(0, BAND_SITES)
+    .sort((a, b) => siteStats[a].pos - siteStats[b].pos);
+
+  const freq = [], meanAxis = [], meanExpr = [], n = [];
+  for (let b = 0; b < BANDS; b++) {
+    const band = ranked.slice(
+      Math.floor((b * ranked.length) / BANDS),
+      Math.floor(((b + 1) * ranked.length) / BANDS),
+    );
+    n.push(band.length);
+    meanAxis.push(round(band.reduce((s, o) => s + o.v, 0) / band.length, 3));
+    meanExpr.push(round(
+      band.reduce((s, o) => s + Math.log10((kept[o.i].expression ?? 0) + 1), 0) / band.length, 3,
+    ));
+    freq.push(siteIdx.map((si) => {
+      let sum = 0, called = 0;
+      for (const o of band) {
+        const ch = rows[si][kept[o.i].col];
+        if (ch === '.') continue;
+        sum += ch === '0' ? 0 : ch === '1' ? 1 : 2;
+        called++;
+      }
+      return called === 0 ? null : round(sum / (2 * called), 3);
+    }));
+  }
+  return { sites: siteIdx, freq, meanAxis, meanExpr, n };
+}
+
+const bands = {
+  count: BANDS,
+  axes: Object.fromEntries(
+    Object.keys(cline).map((axis) => [axis, bandsFor(axis)]).filter(([, v]) => v !== null),
+  ),
+};
+
 const used = ['araclim', 'gse80744', ...(publicBuild ? [] : ['1001genomes'])];
 const restricted = Object.entries(sources)
   .filter(([k, v]) => k !== '_comment' && !v.redistribute)
@@ -250,6 +307,7 @@ const artifact = {
   // Correlation of allele dosage with each environmental axis, per site.
   // null where the site is too rare or too poorly called to test.
   cline,
+  bands,
   // One string per site, one character per accession, in `accessions` order.
   ...(publicBuild ? {} : { genotypes: rows.map((row) => kept.map(({ col }) => row[col]).join('')) }),
 };

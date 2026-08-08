@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Coldframe</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="masthead">
+        <div class="identity">
+          <h1>Coldframe</h1>
+          <p class="tagline">One locus, a thousand wild plants, ordered by the climate each came from.</p>
+        </div>
+        <button class="theme-toggle" id="theme" type="button" aria-label="Switch colour theme">
+          <span data-theme-label></span>
+        </button>
+      </header>
+
+      <div class="locus-bar" id="locus-bar" hidden>
+        <div class="locus-name">
+          <strong id="locus-label"></strong>
+          <span id="locus-gene"></span>
+        </div>
+        <div class="locus-coords" id="locus-coords"></div>
+        <div class="locus-counts" id="locus-counts"></div>
+      </div>
+
+      <div class="controls" id="controls" hidden>
+        <label class="control">
+          <span class="control-label">Order accessions by</span>
+          <select id="axis"></select>
+        </label>
+
+        <label class="control">
+          <span class="control-label">Sites shown <em id="site-count"></em></span>
+          <input type="range" id="sites" min="6" max="48" step="1" value="24" />
+        </label>
+
+        <div class="control legend" aria-hidden="true">
+          <span class="control-label">Genotype</span>
+          <div class="swatches">
+            <span><i data-swatch="ref"></i>reference</span>
+            <span><i data-swatch="het"></i>heterozygous</span>
+            <span><i data-swatch="alt"></i>alternate</span>
+          </div>
+        </div>
+      </div>
+
+      <main class="stage">
+        <canvas id="panel"></canvas>
+        <p class="status" id="status">Loading locus…</p>
+      </main>
+
+      <footer class="colophon">
+        <p>
+          <em>Arabidopsis thaliana</em>, 1001 Genomes panel. Climate from AraCLIM,
+          expression from GEO&nbsp;GSE80744, genotypes from the 1001&nbsp;Genomes
+          v3.1 callset. See <a href="https://github.com/thepacket/Coldframe">the repository</a>
+          for sources and terms.
+        </p>
+      </footer>
+    </div>
+
+    <div class="tooltip" id="tooltip" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

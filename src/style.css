@@ -1,0 +1,304 @@
+/* Colour here is data, not decoration: the genotype ramp is ordered by allele
+   dosage, the climate ramp is a cold-warm diverging pair chosen because
+   blue-orange survives every common form of colour blindness. Both themes keep
+   the same lightness ordering so the encoding reads identically in either. */
+
+:root {
+  --bg: #f6f3ed;
+  --panel: #fffdf9;
+  --ink: #23201c;
+  --ink-soft: #56504a;
+  --muted: #8c847a;
+  --rule: #e2dbd0;
+  --accent: #2f4858;
+  --focus: #7a5c3e;
+
+  --gt-ref: #e8e2d9;
+  --gt-het: #9aab8e;
+  --gt-alt: #2f4858;
+  --gt-missing: #f2eee8;
+
+  --clim-cold: #315880;
+  --clim-warm: #c86a3f;
+  --expr-lo: #eef0eb;
+  --expr-hi: #264634;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
+  --bg: #14161a;
+  --panel: #1a1d22;
+  --ink: #e9e5de;
+  --ink-soft: #b3ada4;
+  --muted: #857f77;
+  --rule: #2b2f36;
+  --accent: #9fc6dd;
+  --focus: #d3a878;
+
+  --gt-ref: #2c3138;
+  --gt-het: #6f8a6a;
+  --gt-alt: #a8cde3;
+  --gt-missing: #1f232a;
+
+  --clim-cold: #6fa8dc;
+  --clim-warm: #e08b5e;
+  --expr-lo: #232830;
+  --expr-hi: #8fc4a0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 3rem 2rem 4rem;
+}
+
+@media (max-width: 640px) {
+  .app { padding: 2rem 1rem 3rem; }
+}
+
+/* --- masthead ----------------------------------------------------------- */
+
+.masthead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-size: 2.1rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.tagline {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 46ch;
+}
+
+.theme-toggle {
+  flex: none;
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.9rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.theme-toggle:hover { border-color: var(--muted); color: var(--ink); }
+
+/* --- locus bar ---------------------------------------------------------- */
+
+.locus-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.locus-name strong {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.locus-name span,
+.locus-coords {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.locus-name span { margin-left: 0.5rem; }
+.locus-counts { margin-left: auto; color: var(--muted); font-size: 0.82rem; }
+
+/* --- controls ----------------------------------------------------------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.75rem;
+  padding: 1.25rem 0 1.5rem;
+}
+
+.control { display: block; }
+
+.control-label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+
+.control-label em {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  letter-spacing: 0;
+}
+
+select {
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.42rem 0.6rem;
+  min-width: 15rem;
+  cursor: pointer;
+}
+
+select:focus-visible,
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11rem;
+  height: 2px;
+  background: var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  margin: 0.75rem 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  cursor: pointer;
+}
+
+.legend .swatches {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.legend .swatches span { display: flex; align-items: center; gap: 0.35rem; }
+
+.legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgb(0 0 0 / 0.08);
+}
+
+[data-swatch="ref"] { background: var(--gt-ref); }
+[data-swatch="het"] { background: var(--gt-het); }
+[data-swatch="alt"] { background: var(--gt-alt); }
+
+/* --- stage -------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1.25rem;
+  overflow-x: auto;
+}
+
+canvas { display: block; }
+
+.status {
+  margin: 0;
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.status[hidden] { display: none; }
+
+.status.error {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  text-align: left;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+/* --- tooltip ------------------------------------------------------------ */
+
+.tooltip {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.13);
+  padding: 0.7rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-width: 19rem;
+}
+
+.tooltip[hidden] { display: none; }
+.tooltip dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.75rem; margin: 0.4rem 0 0; }
+.tooltip dt { color: var(--muted); }
+.tooltip dd { margin: 0; font-family: var(--mono); font-size: 0.75rem; }
+.tooltip .tip-title { font-family: var(--serif); font-size: 1rem; }
+.tooltip .tip-sub { color: var(--muted); font-size: 0.75rem; }
+
+/* --- colophon ----------------------------------------------------------- */
+
+.colophon {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.colophon p { margin: 0; max-width: 70ch; }
+.colophon a { color: var(--ink-soft); }

@@ -1,0 +1,181 @@
+// Canvas rendering and hit testing. Layout is computed once and shared by both
+// so what you point at is what you saw.
+
+import type { View } from './model';
+import { type Palette, type RGB, css, mix } from './theme';
+
+const GUTTER = 15; // climate strip, expression strip
+const GAP = 4;
+const MATRIX_GAP = 14;
+const CAPTION_H = 22;
+const SECTION_GAP = 20;
+const CLINE_H = 44;
+const BAND_H = 6;
+const ROW_H = 1;
+const MIN_CELL = 9;
+const MAX_CELL = 40;
+
+export interface Layout {
+  width: number;
+  height: number;
+  cellW: number;
+  matrixX: number;
+  clineY: number;
+  bandsY: number;
+  rowsY: number;
+  bandH: number;
+  rowH: number;
+}
+
+export type Hit =
+  | { kind: 'row'; row: number; col: number | null }
+  | { kind: 'band'; band: number; col: number | null }
+  | { kind: 'cline'; col: number }
+  | null;
+
+export function layout(view: View, available: number): Layout {
+  const matrixX = GUTTER + GAP + GUTTER + MATRIX_GAP;
+  const cols = Math.max(1, view.columns.length);
+  const cellW = Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor((available - matrixX) / cols)));
+
+  const clineY = CAPTION_H;
+  const bandsY = clineY + CLINE_H + SECTION_GAP + CAPTION_H;
+  const bandsH = view.bands.length * BAND_H;
+  const rowsY = bandsY + bandsH + SECTION_GAP + CAPTION_H;
+  const rowsH = view.hasGenotypes ? view.rows.length * ROW_H : 34;
+
+  return {
+    width: matrixX + cellW * cols,
+    height: rowsY + rowsH,
+    cellW,
+    matrixX,
+    clineY,
+    bandsY,
+    rowsY,
+    bandH: BAND_H,
+    rowH: ROW_H,
+  };
+}
+
+const genotypeColor = (ch: string, p: Palette): RGB =>
+  ch === '0' ? p.gtRef : ch === '2' ? p.gtAlt : ch === '1' ? p.gtHet : p.gtMissing;
+
+export function draw(
+  ctx: CanvasRenderingContext2D,
+  view: View,
+  L: Layout,
+  p: Palette,
+  genotypes: string[] | undefined,
+  axisLabel: string,
+) {
+  ctx.clearRect(0, 0, L.width, L.height);
+
+  const caption = (text: string, y: number) => {
+    ctx.fillStyle = p.muted;
+    ctx.font = '600 9.5px system-ui, -apple-system, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text.toUpperCase(), 0, y - 8);
+  };
+
+  const [aLo, aHi] = view.axisRange;
+  const aSpan = aHi - aLo || 1;
+  const climateColor = (v: number) => mix(p.climCold, p.climWarm, (v - aLo) / aSpan);
+  const exprColor = (t: number) => mix(p.exprLo, p.exprHi, t);
+
+  // --- cline strength -------------------------------------------------------
+
+  caption(`Cline strength · r against ${axisLabel}`, L.clineY);
+
+  const maxAbs = Math.max(0.5, ...view.columns.map((c) => Math.abs(c.r)));
+  const mid = L.clineY + CLINE_H / 2;
+
+  ctx.strokeStyle = p.rule;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(L.matrixX, mid + 0.5);
+  ctx.lineTo(L.width, mid + 0.5);
+  ctx.stroke();
+
+  view.columns.forEach((c, i) => {
+    const h = (Math.abs(c.r) / maxAbs) * (CLINE_H / 2 - 3);
+    ctx.fillStyle = css(c.r >= 0 ? p.climWarm : p.climCold);
+    ctx.fillRect(
+      L.matrixX + i * L.cellW + 1,
+      c.r >= 0 ? mid - h : mid,
+      Math.max(1, L.cellW - 2),
+      h,
+    );
+  });
+
+  // --- climate bands --------------------------------------------------------
+
+  caption(`Climate bands · alt allele frequency · ${view.bands.length} equal groups`, L.bandsY);
+
+  view.bands.forEach((band, b) => {
+    const y = L.bandsY + b * L.bandH;
+    ctx.fillStyle = css(climateColor(band.meanAxis));
+    ctx.fillRect(0, y, GUTTER, L.bandH);
+    ctx.fillStyle = css(exprColor(band.exprRank));
+    ctx.fillRect(GUTTER + GAP, y, GUTTER, L.bandH);
+
+    band.freq.forEach((f, i) => {
+      ctx.fillStyle = css(f === null ? p.gtMissing : mix(p.gtRef, p.gtAlt, f));
+      ctx.fillRect(L.matrixX + i * L.cellW, y, L.cellW, L.bandH);
+    });
+  });
+
+  // --- accessions -----------------------------------------------------------
+
+  if (!view.hasGenotypes || !genotypes) {
+    caption('Accessions', L.rowsY);
+    ctx.fillStyle = p.muted;
+    ctx.font = '12px system-ui, -apple-system, sans-serif';
+    ctx.fillText(
+      'Per-accession genotypes are not included in the published build.',
+      0,
+      L.rowsY + 14,
+    );
+    return;
+  }
+
+  caption(
+    `Accessions · ${view.rows.length} plants, coldest first${view.omitted ? ` · ${view.omitted} without a value` : ''}`,
+    L.rowsY,
+  );
+
+  view.rows.forEach((row, y0) => {
+    const y = L.rowsY + y0 * L.rowH;
+    ctx.fillStyle = css(climateColor(row.axisValue));
+    ctx.fillRect(0, y, GUTTER, L.rowH);
+    ctx.fillStyle = css(exprColor(row.exprRank));
+    ctx.fillRect(GUTTER + GAP, y, GUTTER, L.rowH);
+
+    view.columns.forEach((c, i) => {
+      const ch = genotypes[c.siteIndex]?.[row.gtIndex] ?? '.';
+      ctx.fillStyle = css(genotypeColor(ch, p));
+      ctx.fillRect(L.matrixX + i * L.cellW, y, L.cellW, L.rowH);
+    });
+  });
+}
+
+export function hitTest(view: View, L: Layout, x: number, y: number): Hit {
+  const col = x >= L.matrixX
+    ? Math.min(view.columns.length - 1, Math.floor((x - L.matrixX) / L.cellW))
+    : null;
+
+  if (y >= L.clineY && y < L.clineY + CLINE_H) {
+    return col === null ? null : { kind: 'cline', col };
+  }
+
+  const bandsEnd = L.bandsY + view.bands.length * L.bandH;
+  if (y >= L.bandsY && y < bandsEnd) {
+    return { kind: 'band', band: Math.floor((y - L.bandsY) / L.bandH), col };
+  }
+
+  const rowsEnd = L.rowsY + view.rows.length * L.rowH;
+  if (view.hasGenotypes && y >= L.rowsY && y < rowsEnd) {
+    return { kind: 'row', row: Math.floor((y - L.rowsY) / L.rowH), col };
+  }
+
+  return null;
+}
