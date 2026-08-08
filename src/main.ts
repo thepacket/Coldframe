@@ -197,37 +197,48 @@ function renderMap() {
     <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
-  const plant = el('map-plant');
-  const band = verticalFocus === 'bands' && selectedBand !== null
-    ? view.bands[selectedBand]
-    : null;
+  // Both cursors report the cell they cross with the selected site, and both
+  // stay visible regardless of which one the arrow keys currently drive. The
+  // intersection value is what the panel is actually being asked, so it is the
+  // emphasised line in each block rather than a footnote under the identity.
+  const siteLabel = `${artifact.locus.chrom}:${site.pos.toLocaleString()}`;
 
+  const bandBox = el('cross-band');
+  const band = selectedBand === null ? null : view.bands[selectedBand];
   if (band) {
-    const freqAt = view.columns.findIndex((c) => c.siteIndex === selectedSite);
-    const freq = freqAt === -1 ? null : (band.freq[freqAt] ?? null);
-    plant.innerHTML =
+    const at = view.columns.findIndex((c) => c.siteIndex === selectedSite);
+    const freq = at === -1 ? null : (band.freq[at] ?? null);
+    el('cross-band-stats').innerHTML =
+      `<dt>Alt at ${siteLabel}</dt><dd class="at-cursor">${
+        freq === null ? 'not shown' : `${(freq * 100).toFixed(1)}%`
+      }</dd>` +
       `<dt>Band</dt><dd>${(selectedBand as number) + 1} of ${view.bands.length}, coldest first</dd>` +
       `<dt>Plants</dt><dd>${band.n}</dd>` +
       `<dt>${humanise(view.axis)}</dt><dd>${fmt(band.meanAxis)} mean</dd>` +
-      `<dt>Alt here</dt><dd>${freq === null ? '&mdash;' : `${(freq * 100).toFixed(1)}%`}</dd>` +
       band.groups.slice(0, 2)
         .map(([g, share]) => `<dt>${ancestryLabel(g)}</dt><dd>${Math.round(share * 100)}%</dd>`)
         .join('');
-    plant.hidden = false;
+    bandBox.hidden = false;
   } else {
-    const rowAt = focusedRow();
-    const focused = rowAt === null ? null : view.rows[rowAt];
-    if (focused) {
-      const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
-      plant.innerHTML =
-        `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
-        `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
-        `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
-        `<dt>Carries</dt><dd>${GENOTYPE_NAME[gt]}</dd>`;
-      plant.hidden = false;
-    } else {
-      plant.hidden = true;
-    }
+    bandBox.hidden = true;
+  }
+
+  const plantBox = el('cross-plant');
+  const rowAt = focusedRow();
+  const focused = rowAt === null ? null : view.rows[rowAt];
+  if (focused) {
+    const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
+    el('cross-plant-stats').innerHTML =
+      `<dt>Carries at ${siteLabel}</dt><dd class="at-cursor">${GENOTYPE_NAME[gt]}</dd>` +
+      `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
+      `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
+      `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
+      `<dt>Expression</dt><dd>${
+        focused.accession.expression === null ? '&mdash;' : fmt(focused.accession.expression, 0)
+      }</dd>`;
+    plantBox.hidden = false;
+  } else {
+    plantBox.hidden = true;
   }
 
   el('map-hint').textContent =
