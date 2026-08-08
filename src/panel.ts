@@ -67,6 +67,8 @@ export function draw(
   p: Palette,
   genotypes: string[] | undefined,
   axisLabel: string,
+  /** Site index driving the map, outlined here so the two views stay tied. */
+  selected: number | null,
 ) {
   ctx.clearRect(0, 0, L.width, L.height);
 
@@ -135,27 +137,42 @@ export function draw(
       0,
       L.rowsY + 14,
     );
-    return;
+  } else {
+    caption(
+      `Accessions · ${view.rows.length} plants, coldest first${view.omitted ? ` · ${view.omitted} without a value` : ''}`,
+      L.rowsY,
+    );
+
+    view.rows.forEach((row, y0) => {
+      const y = L.rowsY + y0 * L.rowH;
+      ctx.fillStyle = css(climateColor(row.axisValue));
+      ctx.fillRect(0, y, GUTTER, L.rowH);
+      ctx.fillStyle = css(exprColor(row.exprRank));
+      ctx.fillRect(GUTTER + GAP, y, GUTTER, L.rowH);
+
+      view.columns.forEach((c, i) => {
+        const ch = genotypes[c.siteIndex]?.[row.gtIndex] ?? '.';
+        ctx.fillStyle = css(genotypeColor(ch, p));
+        ctx.fillRect(L.matrixX + i * L.cellW, y, L.cellW, L.rowH);
+      });
+    });
   }
 
-  caption(
-    `Accessions · ${view.rows.length} plants, coldest first${view.omitted ? ` · ${view.omitted} without a value` : ''}`,
-    L.rowsY,
-  );
+  // --- selected column ------------------------------------------------------
+  // Drawn last, so neither the bands nor the rows paint over the outline.
 
-  view.rows.forEach((row, y0) => {
-    const y = L.rowsY + y0 * L.rowH;
-    ctx.fillStyle = css(climateColor(row.axisValue));
-    ctx.fillRect(0, y, GUTTER, L.rowH);
-    ctx.fillStyle = css(exprColor(row.exprRank));
-    ctx.fillRect(GUTTER + GAP, y, GUTTER, L.rowH);
+  const selectedCol =
+    selected === null ? -1 : view.columns.findIndex((c) => c.siteIndex === selected);
 
-    view.columns.forEach((c, i) => {
-      const ch = genotypes[c.siteIndex]?.[row.gtIndex] ?? '.';
-      ctx.fillStyle = css(genotypeColor(ch, p));
-      ctx.fillRect(L.matrixX + i * L.cellW, y, L.cellW, L.rowH);
-    });
-  });
+  if (selectedCol >= 0) {
+    const x = L.matrixX + selectedCol * L.cellW;
+    const bottom = view.hasGenotypes
+      ? L.rowsY + view.rows.length * L.rowH
+      : L.bandsY + view.bands.length * L.bandH;
+    ctx.strokeStyle = p.accent;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - 0.75, L.clineY - 3.75, L.cellW + 1.5, bottom - L.clineY + 7.5);
+  }
 }
 
 export function hitTest(view: View, L: Layout, x: number, y: number): Hit {

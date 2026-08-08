@@ -15,7 +15,8 @@ Built on *Arabidopsis thaliana*, whose 1001 Genomes panel is the best natural
 experiment in climate adaptation we have — 1,135 accessions collected from Cape
 Verde to northern Scandinavia, sequenced, expression-profiled, and geo-referenced.
 
-Status: **early.** The data layer joins and validates; there is no interface yet.
+Status: **early, but real.** Nine loci, a map, and a linked panel. No gene
+models yet, and no way to bring your own region.
 
 ## Why not IGV or JBrowse
 
@@ -63,19 +64,29 @@ geo-referenced accessions, which is where 664 comes from.
 ## Usage
 
 ```bash
-./scripts/fetch-raw.sh
+./scripts/fetch-raw.sh          # ~40s, ~100MB into data/raw
+node scripts/build-all.mjs      # every locus in loci.json, plus index.json
+```
+
+Each locus writes `data/derived/<label>.json` — the roster with climate and
+expression, the segregating sites with allele frequencies, per-site
+environmental correlations, band aggregates, and a genotype string per site
+(one character per accession, aligned to the roster).
+
+Add `--public` for shippable artifacts, which omit the genotype matrix. See
+[Licence](#licence). `build-locus.mjs` builds a single locus if you want one:
+
+```bash
 node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC
 ```
 
-Writes `data/derived/flc.json` — the roster with climate and expression, the
-segregating sites with allele frequencies, per-site environmental correlations,
-and a genotype string per site (one character per accession, aligned to the
-roster).
-
-Add `--public` to build a shippable artifact. It writes `flc.public.json`,
-identical but with the genotype matrix omitted. See [Licence](#licence).
+Curated loci live in [loci.json](loci.json) — gene, region, and a note on what
+the gene does. Add an entry, rerun both scripts, and it appears in the app.
 
 `data/` is disposable and regenerable; don't commit it.
+
+The embedded coastline is prebuilt and committed. To regenerate it, download
+Natural Earth `ne_110m_land.geojson` and run `node scripts/build-coastline.mjs`.
 
 ## Running the app
 
@@ -113,6 +124,27 @@ colour.
 Showing all 974 segregating sites was tried and abandoned: at one pixel per
 site the informative columns vanish under rare variants. Site selection isn't
 an optimisation here, it's load-bearing.
+
+## The map
+
+The panel sorts accessions by climate, which is an abstraction of a cline. The
+map is the cline itself: every plant at the place it was collected, coloured by
+what it carries at one site. Click any column in the panel to move the map to
+that site.
+
+Land comes from Natural Earth, embedded at build time — no tile server, no
+third-party request, works offline.
+
+Two things it deliberately leaves out. North American accessions are not drawn:
+*Arabidopsis* there is introduced, carrying European genotypes without having
+had time to adapt locally, so plotting them beside the native range invites a
+wrong reading. They are counted instead. And the southern edge drops exactly
+one accession — Cvi-0, from Cape Verde at 15°N — because framing for it would
+spend 40% of the map on empty ocean and Sahara.
+
+The map needs per-accession calls, so it does not appear in a `--public` build.
+That is the sharpest cost of the licensing position, and the best argument for
+getting the terms confirmed.
 
 ## Contributing
 

@@ -11,6 +11,7 @@ export interface Palette {
   gtHet: RGB;
   gtAlt: RGB;
   gtMissing: RGB;
+  land: RGB;
   climCold: RGB;
   climWarm: RGB;
   exprLo: RGB;
@@ -41,6 +42,7 @@ export function readPalette(): Palette {
     gtHet: rgb('--gt-het'),
     gtAlt: rgb('--gt-alt'),
     gtMissing: rgb('--gt-missing'),
+    land: rgb('--land'),
     climCold: rgb('--clim-cold'),
     climWarm: rgb('--clim-warm'),
     exprLo: rgb('--expr-lo'),
