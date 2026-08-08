@@ -11,6 +11,7 @@ export interface Row {
   exprRank: number;
   /** Column index into `Artifact.genotypes[site]`. */
   gtIndex: number;
+  ancestry: string;
 }
 
 export interface Column {
@@ -18,6 +19,8 @@ export interface Column {
   siteIndex: number;
   /** Correlation with the current axis; always non-null for shown columns. */
   r: number;
+  /** The same correlation computed within ancestry groups. */
+  rWithin: number | null;
 }
 
 export interface Band {
@@ -27,6 +30,8 @@ export interface Band {
   n: number;
   /** Alt allele frequency per column, aligned to `columns`. */
   freq: (number | null)[];
+  /** Ancestry make-up, commonest first. */
+  groups: [string, number][];
 }
 
 export interface View {
@@ -74,7 +79,12 @@ export function buildView(artifact: Artifact, axis: string, siteCount: number): 
 
   const columns: Column[] = chosen
     .sort((a, b) => (artifact.sites[a] as Site).pos - (artifact.sites[b] as Site).pos)
-    .map((i) => ({ site: artifact.sites[i] as Site, siteIndex: i, r: cline[i] as number }));
+    .map((i) => ({
+      site: artifact.sites[i] as Site,
+      siteIndex: i,
+      r: cline[i] as number,
+      rWithin: artifact.clineWithin?.[axis]?.[i] ?? null,
+    }));
 
   const ranks = expressionRanks(artifact.accessions);
   const ordered = artifact.accessions
@@ -83,7 +93,11 @@ export function buildView(artifact: Artifact, axis: string, siteCount: number): 
     .sort((p, q) => p.axisValue - q.axisValue);
 
   const rows: Row[] = artifact.genotypes
-    ? ordered.map((o) => ({ ...o, exprRank: ranks.get(o.accession.id) ?? 0 }))
+    ? ordered.map((o) => ({
+        ...o,
+        exprRank: ranks.get(o.accession.id) ?? 0,
+        ancestry: artifact.ancestry?.[o.gtIndex] ?? 'unknown',
+      }))
     : [];
 
   // Band frequencies are precomputed against the artifact's own 48-site list,
@@ -101,6 +115,7 @@ export function buildView(artifact: Artifact, axis: string, siteCount: number): 
         meanAxis: axisBands.meanAxis[b] as number,
         exprRank: (((exprValues[b] as number) - eLo) / eSpan),
         n: axisBands.n[b] as number,
+        groups: axisBands.groups?.[b] ?? [],
         freq: columns.map((c) => {
           const n = slot.get(c.siteIndex);
           return n === undefined ? null : (row[n] ?? null);

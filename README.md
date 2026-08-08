@@ -179,6 +179,49 @@ would predict.
 Per-site expression associations are precomputed for every site, so the signal
 shows up on hover rather than needing a hunt.
 
+## Ancestry, and why the raw clines overstate
+
+Northern accessions are both related and cold. So an allele frequency gradient
+along a climate axis may be relatedness wearing a costume, and a raw
+correlation is not on its own evidence of adaptation.
+
+Coldframe computes every correlation a second time *inside* each admixture
+group and averages by group size. The panel draws both: a pale bar for the raw
+correlation, a solid bar for the within-ancestry one. The gap between them is
+the part that was population structure.
+
+It is a weighted mean of within-group r, not a formal partial correlation —
+enough to flag a confound, not enough to publish on.
+
+The confound is also drawn directly. Sorted by climate, the accession strip
+shows ancestry as near-solid blocks, and the band strip makes it stark: at
+*CO*, the coldest band is 50% Asian and 45% North Swedish, the warmest 43%
+Spanish. Climate bands are substantially ancestry bands.
+
+Strongest cline per locus, before and after the control:
+
+| Locus | axis | raw | within ancestry | kept |
+|---|---|---|---|---|
+| FT | temperature | −0.296 | −0.210 | **71%** |
+| CO | spring temperature | −0.537 | −0.218 | 41% |
+| CMT2 | spring night temp | −0.428 | −0.164 | 38% |
+| FRI | spring night temp | −0.432 | −0.157 | 36% |
+| GI | spring night temp | −0.345 | −0.124 | 36% |
+| CBF | spring temperature | −0.469 | −0.150 | 32% |
+| CRY2 | spring temperature | −0.459 | −0.042 | 9% |
+| FLC | spring night temp | −0.434 | −0.040 | 9% |
+| PHYB | summer insolation | +0.387 | −0.005 | **1%** |
+
+Read this before trusting any headline number in this repository, including
+the ones above it. *PHYB* looked like the tidiest result in the set — a light
+receptor whose strongest correlate is light rather than temperature — and it
+is almost entirely structure. *FT*, the least eye-catching, is the one that
+survives.
+
+This does not undo the [validation](#validation) below, which asks whether the
+join produces real structure in the right place. It does undo any reading of
+these clines as demonstrated adaptation.
+
 ## Contributing
 
 Issues are welcome — corrections to the biology especially. Pull requests are

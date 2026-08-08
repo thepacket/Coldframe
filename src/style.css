@@ -366,6 +366,28 @@ input[type="range"]::-moz-range-thumb {
   max-width: 62ch;
 }
 
+/* --- ancestry key ------------------------------------------------------- */
+
+.ancestry-key { margin-bottom: 0.9rem; }
+.ancestry-key[hidden] { display: none; }
+
+.ancestry-key .swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.ancestry-key .swatches span { display: flex; align-items: center; gap: 0.35rem; }
+
+.ancestry-key i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
 /* --- stage -------------------------------------------------------------- */
 
 .stage {

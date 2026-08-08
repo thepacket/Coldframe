@@ -1,5 +1,6 @@
 import type { Artifact } from './types';
 import { buildView, humanise, type View } from './model';
+import { ancestryColor, ancestryLabel, ancestryOrder } from './ancestry';
 import { drawExpression, expressionHeight } from './expression';
 import { drawMap, mapAspect, pickPoint, type MapPoint } from './map';
 import { draw, hitTest, layout, type Hit, type Layout } from './panel';
@@ -161,8 +162,14 @@ function renderMap() {
   const r = artifact.cline[view.axis]?.[selectedSite] ?? null;
   el('map-site').innerHTML =
     `${artifact.locus.chrom}:${site.pos.toLocaleString()}<span>${site.ref} &rarr; ${site.alt}</span>`;
+  const rWithin = artifact.clineWithin?.[view.axis]?.[selectedSite] ?? null;
   el('map-stats').innerHTML = `
     <dt>r vs ${humanise(view.axis)}</dt><dd>${r === null ? '&mdash;' : r.toFixed(3)}</dd>
+    <dt>within ancestry</dt><dd>${
+      rWithin === null || r === null
+        ? '&mdash;'
+        : `${rWithin.toFixed(3)} (${Math.round((rWithin / r) * 100)}% kept)`
+    }</dd>
     <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>Called in</dt><dd>${site.called} plants</dd>
@@ -206,6 +213,11 @@ function tooltipHtml(hit: Hit): string | null {
       <div class="tip-sub">${site.ref} &rarr; ${site.alt}</div>
       <dl>
         <dt>r vs ${axisLabel}</dt><dd>${column.r.toFixed(3)}</dd>
+        <dt>within ancestry</dt><dd>${
+          column.rWithin === null
+            ? '&mdash;'
+            : `${column.rWithin.toFixed(3)} (${Math.round((column.rWithin / column.r) * 100)}% kept)`
+        }</dd>
         <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
         <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
         <dt>Called in</dt><dd>${site.called} plants</dd>
@@ -220,6 +232,8 @@ function tooltipHtml(hit: Hit): string | null {
       <div class="tip-sub">${band.n} plants</div>
       <dl>
         <dt>${axisLabel}</dt><dd>${fmt(band.meanAxis)} mean</dd>
+        ${band.groups.slice(0, 3).map(([g, share]) =>
+          `<dt>${ancestryLabel(g)}</dt><dd>${Math.round(share * 100)}%</dd>`).join('')}
         ${site ? `<dt>At ${where}</dt><dd>${freq === null ? '&mdash;' : `${fmt(freq * 100, 1)}% alt`}</dd>` : ''}
       </dl>`;
   }
@@ -351,6 +365,16 @@ async function selectLocus(entry: IndexEntry) {
     button.setAttribute('aria-current', String(button.dataset['label'] === entry.label));
   }
 
+  const legend = el('ancestry-legend');
+  legend.replaceChildren();
+  for (const group of ancestryOrder(artifact.ancestry ?? [])) {
+    const item = document.createElement('span');
+    const swatch = document.createElement('i');
+    swatch.style.background = ancestryColor(group);
+    item.append(swatch, document.createTextNode(ancestryLabel(group)));
+    legend.append(item);
+  }
+
   populateAxes();
 
   // Open on the strongest site for the chosen axis, so the map shows the
@@ -395,6 +419,7 @@ async function boot() {
   nav.hidden = false;
   el('locus-bar').hidden = false;
   el('controls').hidden = false;
+  el('ancestry-key').hidden = false;
 
   axisSelect.addEventListener('change', () => {
     chosenAxis = axisSelect.value;

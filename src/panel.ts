@@ -1,10 +1,12 @@
 // Canvas rendering and hit testing. Layout is computed once and shared by both
 // so what you point at is what you saw.
 
+import { ancestryColor } from './ancestry';
 import type { View } from './model';
 import { type Palette, type RGB, css, mix } from './theme';
 
 const GUTTER = 15; // climate strip, expression strip
+const ANCESTRY_W = 26; // wider: it carries a stacked composition, not one value
 const GAP = 4;
 const MATRIX_GAP = 14;
 const CAPTION_H = 22;
@@ -34,7 +36,7 @@ export type Hit =
   | null;
 
 export function layout(view: View, available: number): Layout {
-  const matrixX = GUTTER + GAP + GUTTER + MATRIX_GAP;
+  const matrixX = GUTTER + GAP + GUTTER + GAP + ANCESTRY_W + MATRIX_GAP;
   const cols = Math.max(1, view.columns.length);
   const cellW = Math.max(MIN_CELL, Math.min(MAX_CELL, Math.floor((available - matrixX) / cols)));
 
@@ -86,7 +88,7 @@ export function draw(
 
   // --- cline strength -------------------------------------------------------
 
-  caption(`Cline strength · r against ${axisLabel}`, L.clineY);
+  caption(`Cline strength · r against ${axisLabel} · solid = within ancestry groups`, L.clineY);
 
   const maxAbs = Math.max(0.5, ...view.columns.map((c) => Math.abs(c.r)));
   const mid = L.clineY + CLINE_H / 2;
@@ -98,20 +100,29 @@ export function draw(
   ctx.lineTo(L.width, mid + 0.5);
   ctx.stroke();
 
+  // Two bars per site. The pale one is the raw correlation; the solid one is
+  // the same correlation computed within ancestry groups. The gap between them
+  // is how much of the cline is relatedness rather than adaptation.
   view.columns.forEach((c, i) => {
-    const h = (Math.abs(c.r) / maxAbs) * (CLINE_H / 2 - 3);
-    ctx.fillStyle = css(c.r >= 0 ? p.climWarm : p.climCold);
-    ctx.fillRect(
-      L.matrixX + i * L.cellW + 1,
-      c.r >= 0 ? mid - h : mid,
-      Math.max(1, L.cellW - 2),
-      h,
-    );
+    const x = L.matrixX + i * L.cellW + 1;
+    const w = Math.max(1, L.cellW - 2);
+    const bar = (r: number, alpha: number, inset: number) => {
+      const h = (Math.abs(r) / maxAbs) * (CLINE_H / 2 - 3);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = css(r >= 0 ? p.climWarm : p.climCold);
+      ctx.fillRect(x + inset, r >= 0 ? mid - h : mid, Math.max(1, w - inset * 2), h);
+      ctx.globalAlpha = 1;
+    };
+    bar(c.r, 0.32, 0);
+    if (c.rWithin !== null) bar(c.rWithin, 1, Math.min(3, Math.floor(w / 4)));
   });
 
   // --- climate bands --------------------------------------------------------
 
-  caption(`Climate bands · alt allele frequency · ${view.bands.length} equal groups`, L.bandsY);
+  caption(
+    `Climate bands · alt allele frequency · ${view.bands.length} equal groups · third strip is ancestry`,
+    L.bandsY,
+  );
 
   view.bands.forEach((band, b) => {
     const y = L.bandsY + b * L.bandH;
@@ -119,6 +130,14 @@ export function draw(
     ctx.fillRect(0, y, GUTTER, L.bandH);
     ctx.fillStyle = css(exprColor(band.exprRank));
     ctx.fillRect(GUTTER + GAP, y, GUTTER, L.bandH);
+
+    let ax = GUTTER + GAP + GUTTER + GAP;
+    for (const [group, share] of band.groups) {
+      const gw = share * ANCESTRY_W;
+      ctx.fillStyle = ancestryColor(group);
+      ctx.fillRect(ax, y, Math.ceil(gw), L.bandH);
+      ax += gw;
+    }
 
     band.freq.forEach((f, i) => {
       ctx.fillStyle = css(f === null ? p.gtMissing : mix(p.gtRef, p.gtAlt, f));
@@ -149,6 +168,8 @@ export function draw(
       ctx.fillRect(0, y, GUTTER, L.rowH);
       ctx.fillStyle = css(exprColor(row.exprRank));
       ctx.fillRect(GUTTER + GAP, y, GUTTER, L.rowH);
+      ctx.fillStyle = ancestryColor(row.ancestry);
+      ctx.fillRect(GUTTER + GAP + GUTTER + GAP, y, ANCESTRY_W, L.rowH);
 
       view.columns.forEach((c, i) => {
         const ch = genotypes[c.siteIndex]?.[row.gtIndex] ?? '.';

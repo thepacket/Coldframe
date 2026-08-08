@@ -45,6 +45,10 @@ const CLIMATE_VARS = [
 const MIN_ALT_FREQ = 0.05;
 const MIN_CALLED = 300;
 
+// An ancestry group needs this many called accessions before its within-group
+// correlation counts toward the stratified statistic.
+const MIN_GROUP = 25;
+
 /** Minimal RFC4180-ish splitter: handles quoted fields, no embedded newlines. */
 function splitCsvLine(line) {
   const out = [];
@@ -207,6 +211,22 @@ sampleIds.forEach((id, col) => {
 // Per-site statistics. These are computed from the genotype matrix but are not
 // a subset of it, so they ship even when the matrix itself cannot.
 const cline = Object.fromEntries([['lat', []], ...CLIMATE_VARS.map((v) => [v, []])]);
+
+/**
+ * The same correlations computed inside each ancestry group and averaged,
+ * weighted by group size.
+ *
+ * This is the control the raw cline needs. Northern accessions are both related
+ * and cold, so an allele frequency gradient along climate may be relatedness
+ * wearing a costume. If the correlation survives within groups it is more
+ * likely adaptation; if it collapses, the raw number was population structure.
+ *
+ * A weighted mean of within-group r, not a formal partial correlation - enough
+ * to flag a confound, not enough to publish on.
+ */
+const clineWithin = Object.fromEntries(Object.keys(cline).map((k) => [k, []]));
+const groupOf = kept.map((a) => a.group ?? 'unknown');
+const groupNames = [...new Set(groupOf)];
 const logExpr = kept.map((a) => (a.expression === null ? null : Math.log10(a.expression + 1)));
 const siteStats = rows.map((row, si) => {
   const calls = kept.map(({ col }) => row[col]);
@@ -216,13 +236,29 @@ const siteStats = rows.map((row, si) => {
 
   const testable = called >= MIN_CALLED && altFreq >= MIN_ALT_FREQ && altFreq <= 1 - MIN_ALT_FREQ;
   for (const axis of Object.keys(cline)) {
-    if (!testable) { cline[axis].push(null); continue; }
+    if (!testable) { cline[axis].push(null); clineWithin[axis].push(null); continue; }
     const g = [], e = [];
     kept.forEach((acc, i) => {
       const v = axis === 'lat' ? acc.lat : acc.climate[axis];
       if (dosage[i] !== null && v !== null) { g.push(dosage[i]); e.push(v); }
     });
     cline[axis].push(g.length < MIN_CALLED ? null : round(pearson(g, e)));
+
+    let weighted = 0, weight = 0;
+    for (const name of groupNames) {
+      const gg = [], ee = [];
+      kept.forEach((acc, i) => {
+        if (groupOf[i] !== name) return;
+        const v = axis === 'lat' ? acc.lat : acc.climate[axis];
+        if (dosage[i] !== null && v !== null) { gg.push(dosage[i]); ee.push(v); }
+      });
+      if (gg.length < MIN_GROUP) continue;
+      const r = pearson(gg, ee);
+      if (r === null) continue;
+      weighted += r * gg.length;
+      weight += gg.length;
+    }
+    clineWithin[axis].push(weight === 0 ? null : round(weighted / weight));
   }
 
   // Allele dosage against expression - a cis-eQTL test at this site. Cheap to
@@ -265,7 +301,7 @@ function bandsFor(axis) {
     .slice(0, BAND_SITES)
     .sort((a, b) => siteStats[a].pos - siteStats[b].pos);
 
-  const freq = [], meanAxis = [], meanExpr = [], n = [];
+  const freq = [], meanAxis = [], meanExpr = [], n = [], groups = [];
   for (let b = 0; b < BANDS; b++) {
     const band = ranked.slice(
       Math.floor((b * ranked.length) / BANDS),
@@ -276,6 +312,20 @@ function bandsFor(axis) {
     meanExpr.push(round(
       band.reduce((s, o) => s + Math.log10((kept[o.i].expression ?? 0) + 1), 0) / band.length, 3,
     ));
+
+    // Ancestry make-up of the band. If climate bands turn out to be ancestry
+    // blocks, the cline and the relatedness are the same axis and the raw
+    // correlation is not evidence of adaptation.
+    const tally = new Map();
+    for (const o of band) {
+      const g = groupOf[o.i];
+      tally.set(g, (tally.get(g) ?? 0) + 1);
+    }
+    groups.push(
+      [...tally.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, count]) => [name, round(count / band.length, 3)]),
+    );
     freq.push(siteIdx.map((si) => {
       let sum = 0, called = 0;
       for (const o of band) {
@@ -287,7 +337,7 @@ function bandsFor(axis) {
       return called === 0 ? null : round(sum / (2 * called), 3);
     }));
   }
-  return { sites: siteIdx, freq, meanAxis, meanExpr, n };
+  return { sites: siteIdx, freq, meanAxis, meanExpr, n, groups };
 }
 
 const bands = {
@@ -320,6 +370,8 @@ const artifact = {
   // Correlation of allele dosage with each environmental axis, per site.
   // null where the site is too rare or too poorly called to test.
   cline,
+  clineWithin,
+  ancestry: kept.map((a) => a.group ?? 'unknown'),
   bands,
   // One string per site, one character per accession, in `accessions` order.
   ...(publicBuild ? {} : { genotypes: rows.map((row) => kept.map(({ col }) => row[col]).join('')) }),

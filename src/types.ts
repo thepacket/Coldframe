@@ -46,6 +46,8 @@ export interface AxisBands {
   /** Mean log10(expression + 1) per band. */
   meanExpr: number[];
   n: number[];
+  /** `groups[band]` = [[group, share], ...], commonest first. */
+  groups: [string, number][][];
 }
 
 export interface Bands {
@@ -62,6 +64,16 @@ export interface Artifact {
   sites: Site[];
   /** Allele dosage correlated with each environmental axis, per site. */
   cline: Record<string, (number | null)[]>;
+  /**
+   * The same correlations computed inside each ancestry group and averaged by
+   * group size. The control the raw cline needs: northern accessions are both
+   * related and cold, so a gradient along climate may be relatedness wearing a
+   * costume. Survives within groups, more likely adaptation; collapses, it was
+   * structure.
+   */
+  clineWithin: Record<string, (number | null)[]>;
+  /** Admixture group per accession, aligned to `accessions`. */
+  ancestry: string[];
   /**
    * Precomputed band aggregates. Present in every artifact, including --public
    * builds: a band frequency averages ~20 accessions, so it is a fact about the
