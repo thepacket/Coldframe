@@ -42,6 +42,16 @@
             the interesting one.
           </li>
           <li>
+            <strong>Choose what makes a site worth showing.</strong> Only 48 of
+            the region's several hundred variable sites fit on screen, so
+            something has to pick them. <em>Climate gradient</em> ranks by how
+            strongly each site tracks the measure above; <em>expression
+            effect</em> ranks by how strongly it tracks how much of the gene is
+            made. The two disagree sharply — at <em>FRI</em> the strongest
+            expression effect is only the 86th strongest climate gradient, so it
+            is invisible under the other ranking.
+          </li>
+          <li>
             <strong>Read the panel downward.</strong> The bars score every
             variable site in the region. Below them, the plants are grouped into
             32 bands running coldest to warmest, each cell shaded by how common
@@ -83,6 +93,14 @@
         <label class="control">
           <span class="control-label">Order accessions by</span>
           <select id="axis"></select>
+        </label>
+
+        <label class="control">
+          <span class="control-label">Rank sites by</span>
+          <select id="rank">
+            <option value="cline">Climate gradient</option>
+            <option value="expression">Expression effect</option>
+          </select>
         </label>
 
         <label class="control">

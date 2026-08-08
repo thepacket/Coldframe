@@ -265,15 +265,33 @@ const siteStats = rows.map((row, si) => {
   // precompute, and without it the signal is only findable by clicking around:
   // the strongest expression effects rarely sit at the strongest climate cline.
   let exprR = null;
+  let exprRWithin = null;
   if (testable) {
     const g = [], e = [];
     dosage.forEach((d, i) => {
       if (d !== null && logExpr[i] !== null) { g.push(d); e.push(logExpr[i]); }
     });
     if (g.length >= MIN_CALLED) exprR = round(pearson(g, e));
+
+    // Same ancestry control as the climate cline. An expression difference
+    // between allele classes can equally be a difference between families.
+    let weighted = 0, weight = 0;
+    for (const name of groupNames) {
+      const gg = [], ee = [];
+      dosage.forEach((d, i) => {
+        if (groupOf[i] !== name) return;
+        if (d !== null && logExpr[i] !== null) { gg.push(d); ee.push(logExpr[i]); }
+      });
+      if (gg.length < MIN_GROUP) continue;
+      const r = pearson(gg, ee);
+      if (r === null) continue;
+      weighted += r * gg.length;
+      weight += gg.length;
+    }
+    if (weight > 0) exprRWithin = round(weighted / weight);
   }
 
-  return { ...sites[si], altFreq: round(altFreq, 4), called, exprR };
+  return { ...sites[si], altFreq: round(altFreq, 4), called, exprR, exprRWithin };
 });
 
 // Per-band allele frequencies for the strongest sites on each axis.
@@ -294,11 +312,19 @@ function bandsFor(axis) {
     .sort((p, q) => p.v - q.v);
   if (ranked.length < BANDS) return null;
 
-  const siteIdx = siteStats
+  // Union of the two rankings the app offers. Band frequencies are looked up by
+  // site index, so a site the user can select without one here draws blank.
+  const byCline = siteStats
     .map((_, i) => i)
     .filter((i) => cline[axis][i] !== null)
     .sort((a, b) => Math.abs(cline[axis][b]) - Math.abs(cline[axis][a]))
-    .slice(0, BAND_SITES)
+    .slice(0, BAND_SITES);
+  const byExpr = siteStats
+    .map((_, i) => i)
+    .filter((i) => siteStats[i].exprR !== null)
+    .sort((a, b) => Math.abs(siteStats[b].exprR) - Math.abs(siteStats[a].exprR))
+    .slice(0, BAND_SITES);
+  const siteIdx = [...new Set([...byCline, ...byExpr])]
     .sort((a, b) => siteStats[a].pos - siteStats[b].pos);
 
   const freq = [], meanAxis = [], meanExpr = [], n = [], groups = [];

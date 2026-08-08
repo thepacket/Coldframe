@@ -1,5 +1,5 @@
 import type { Artifact } from './types';
-import { buildView, humanise, type View } from './model';
+import { buildView, humanise, type RankBy, type View } from './model';
 import { ancestryColor, ancestryLabel, ancestryOrder } from './ancestry';
 import { drawExpression, expressionHeight } from './expression';
 import { drawMap, mapAspect, pickPoint, type MapPoint } from './map';
@@ -35,6 +35,7 @@ const status = el<HTMLParagraphElement>('status');
 const tooltip = el<HTMLDivElement>('tooltip');
 const axisSelect = el<HTMLSelectElement>('axis');
 const sitesInput = el<HTMLInputElement>('sites');
+const rankSelect = el<HTMLSelectElement>('rank');
 const siteCountOut = el<HTMLElement>('site-count');
 
 let artifact: Artifact;
@@ -165,12 +166,9 @@ function renderMap() {
   const rWithin = artifact.clineWithin?.[view.axis]?.[selectedSite] ?? null;
   el('map-stats').innerHTML = `
     <dt>r vs ${humanise(view.axis)}</dt><dd>${r === null ? '&mdash;' : r.toFixed(3)}</dd>
-    <dt>within ancestry</dt><dd>${
-      rWithin === null || r === null
-        ? '&mdash;'
-        : `${rWithin.toFixed(3)} (${Math.round((rWithin / r) * 100)}% kept)`
-    }</dd>
+    <dt>within ancestry</dt><dd>${kept(rWithin, r)}</dd>
     <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
+    <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>Called in</dt><dd>${site.called} plants</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
@@ -185,7 +183,7 @@ function rebuild() {
   const axis = axisSelect.value;
   const count = Number(sitesInput.value);
   siteCountOut.textContent = String(count);
-  view = buildView(artifact, axis, count);
+  view = buildView(artifact, axis, count, rankSelect.value as RankBy);
   render();
 }
 
@@ -193,6 +191,19 @@ function rebuild() {
 
 const fmt = (v: number, digits = 2) =>
   Number.isInteger(v) ? String(v) : v.toFixed(digits);
+
+/**
+ * "-0.446 (58% kept)" - the ancestry control next to what it controls.
+ *
+ * The kept fraction is only meaningful against a correlation large enough to
+ * lose something. Below 0.1 the ratio is noise over noise, and reads absurdly:
+ * a raw -0.022 against a within of -0.037 is "169% kept", which says nothing.
+ */
+const kept = (within: number | null, raw: number | null) => {
+  if (within === null || raw === null) return '&mdash;';
+  if (Math.abs(raw) < 0.1) return within.toFixed(3);
+  return `${within.toFixed(3)} (${Math.round((within / raw) * 100)}% kept)`;
+};
 
 const GENOTYPE_NAME: Record<string, string> = {
   '0': 'reference',
@@ -212,14 +223,11 @@ function tooltipHtml(hit: Hit): string | null {
     return `<div class="tip-title">${where}</div>
       <div class="tip-sub">${site.ref} &rarr; ${site.alt}</div>
       <dl>
-        <dt>r vs ${axisLabel}</dt><dd>${column.r.toFixed(3)}</dd>
-        <dt>within ancestry</dt><dd>${
-          column.rWithin === null
-            ? '&mdash;'
-            : `${column.rWithin.toFixed(3)} (${Math.round((column.rWithin / column.r) * 100)}% kept)`
-        }</dd>
-        <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
+        <dt>r vs ${axisLabel}</dt><dd>${column.r === null ? '&mdash;' : column.r.toFixed(3)}</dd>
+        <dt>within ancestry</dt><dd>${kept(column.rWithin, column.r)}</dd>
         <dt>r vs expression</dt><dd>${site.exprR === null ? '&mdash;' : site.exprR.toFixed(3)}</dd>
+        <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
+        <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
         <dt>Called in</dt><dd>${site.called} plants</dd>
       </dl>`;
   }
@@ -426,6 +434,16 @@ async function boot() {
     rebuild();
   });
   sitesInput.addEventListener('input', rebuild);
+  rankSelect.addEventListener('change', () => {
+    // Re-open on the strongest site under the new ranking, otherwise switching
+    // leaves the map pointing at a site that may no longer be on screen.
+    rebuild();
+    const first = view.columns.reduce(
+      (best, c) => (best === null || Math.abs(c.value) > Math.abs(best.value) ? c : best),
+      null as (typeof view.columns)[number] | null,
+    );
+    if (first) { selectedSite = first.siteIndex; render(); }
+  });
   new ResizeObserver(() => { if (view) render(); }).observe(stage);
 
   // build-all sorts the index by strongest cline, so the first entry leads.

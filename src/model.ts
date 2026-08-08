@@ -14,13 +14,18 @@ export interface Row {
   ancestry: string;
 }
 
+export type RankBy = 'cline' | 'expression';
+
 export interface Column {
   site: Site;
   siteIndex: number;
-  /** Correlation with the current axis; always non-null for shown columns. */
-  r: number;
+  /** Correlation with the current axis. Null when ranking by expression. */
+  r: number | null;
   /** The same correlation computed within ancestry groups. */
   rWithin: number | null;
+  /** Whichever metric the columns were ranked by, and its ancestry control. */
+  value: number;
+  valueWithin: number | null;
 }
 
 export interface Band {
@@ -36,6 +41,7 @@ export interface Band {
 
 export interface View {
   axis: string;
+  rankBy: RankBy;
   columns: Column[];
   /** Empty when the artifact carries no genotypes (a --public build). */
   rows: Row[];
@@ -65,26 +71,41 @@ function expressionRanks(accessions: Accession[]): Map<string, number> {
   return ranks;
 }
 
-export function buildView(artifact: Artifact, axis: string, siteCount: number): View {
+export function buildView(
+  artifact: Artifact,
+  axis: string,
+  siteCount: number,
+  rankBy: RankBy = 'cline',
+): View {
   const cline = artifact.cline[axis] ?? [];
   const axisBands = artifact.bands.axes[axis];
 
-  // Strongest clines first, then laid out in genomic order so the columns keep
-  // their spatial meaning. Ranking picks the sites; position arranges them.
+  // Ranking picks which sites appear; position arranges them. Two rankings are
+  // offered because they disagree: at FRI the strongest expression effect is
+  // the 86th strongest climate cline, so without this it is unreachable.
+  const metric = (i: number): number | null =>
+    rankBy === 'cline' ? (cline[i] ?? null) : ((artifact.sites[i] as Site).exprR ?? null);
+
   const chosen = artifact.sites
     .map((_, i) => i)
-    .filter((i) => cline[i] !== null && cline[i] !== undefined)
-    .sort((a, b) => Math.abs(cline[b] as number) - Math.abs(cline[a] as number))
+    .filter((i) => metric(i) !== null)
+    .sort((a, b) => Math.abs(metric(b) as number) - Math.abs(metric(a) as number))
     .slice(0, siteCount);
 
   const columns: Column[] = chosen
     .sort((a, b) => (artifact.sites[a] as Site).pos - (artifact.sites[b] as Site).pos)
-    .map((i) => ({
-      site: artifact.sites[i] as Site,
-      siteIndex: i,
-      r: cline[i] as number,
-      rWithin: artifact.clineWithin?.[axis]?.[i] ?? null,
-    }));
+    .map((i) => {
+      const site = artifact.sites[i] as Site;
+      return {
+        site,
+        siteIndex: i,
+        r: cline[i] ?? null,
+        rWithin: artifact.clineWithin?.[axis]?.[i] ?? null,
+        value: metric(i) as number,
+        valueWithin:
+          rankBy === 'cline' ? (artifact.clineWithin?.[axis]?.[i] ?? null) : site.exprRWithin,
+      };
+    });
 
   const ranks = expressionRanks(artifact.accessions);
   const ordered = artifact.accessions
@@ -131,6 +152,7 @@ export function buildView(artifact: Artifact, axis: string, siteCount: number): 
 
   return {
     axis,
+    rankBy,
     columns,
     rows,
     bands,

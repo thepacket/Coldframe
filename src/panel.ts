@@ -88,9 +88,14 @@ export function draw(
 
   // --- cline strength -------------------------------------------------------
 
-  caption(`Cline strength · r against ${axisLabel} · solid = within ancestry groups`, L.clineY);
+  caption(
+    view.rankBy === 'cline'
+      ? `Cline strength · r against ${axisLabel} · solid = within ancestry groups`
+      : 'Expression effect · r against expression of this gene · solid = within ancestry groups',
+    L.clineY,
+  );
 
-  const maxAbs = Math.max(0.5, ...view.columns.map((c) => Math.abs(c.r)));
+  const maxAbs = Math.max(0.5, ...view.columns.map((c) => Math.abs(c.value)));
   const mid = L.clineY + CLINE_H / 2;
 
   ctx.strokeStyle = p.rule;
@@ -113,8 +118,8 @@ export function draw(
       ctx.fillRect(x + inset, r >= 0 ? mid - h : mid, Math.max(1, w - inset * 2), h);
       ctx.globalAlpha = 1;
     };
-    bar(c.r, 0.32, 0);
-    if (c.rWithin !== null) bar(c.rWithin, 1, Math.min(3, Math.floor(w / 4)));
+    bar(c.value, 0.32, 0);
+    if (c.valueWithin !== null) bar(c.valueWithin, 1, Math.min(3, Math.floor(w / 4)));
   });
 
   // --- climate bands --------------------------------------------------------

@@ -19,6 +19,8 @@ export interface Site {
   called: number;
   /** Allele dosage against log expression - a cis-eQTL test. Null if untestable. */
   exprR: number | null;
+  /** The same, computed within ancestry groups. */
+  exprRWithin: number | null;
 }
 
 export interface Locus {
