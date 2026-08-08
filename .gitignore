@@ -1,6 +1,7 @@
 # Source data and build artifacts. Everything here is regenerable:
 #   ./scripts/fetch-raw.sh && node scripts/build-locus.mjs ...
-data/
+# Root-anchored: src/data/ is source code and must not match.
+/data/
 
 node_modules/
 dist/
