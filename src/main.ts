@@ -45,6 +45,14 @@ let selectedSite: number | null = null;
  * plant the moment the ordering changed.
  */
 let selectedAccession: string | null = null;
+/** Focused climate band, when the bands section holds the vertical cursor. */
+let selectedBand: number | null = null;
+/**
+ * Which section up and down move in. Set by whichever you last clicked, so the
+ * vertical keys act on the plot you are actually looking at rather than always
+ * on the accessions.
+ */
+let verticalFocus: 'accessions' | 'bands' = 'accessions';
 let mapPoints: MapPoint[] = [];
 /** Until the slider is touched, it tracks the maximum rather than a fixed count. */
 let siteCountTouched = false;
@@ -91,7 +99,10 @@ function render() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  draw(ctx, view, box, palette, artifact.genotypes, humanise(view.axis), selectedSite, focusedRow());
+  draw(
+    ctx, view, box, palette, artifact.genotypes, humanise(view.axis),
+    selectedSite, focusedRow(), selectedBand,
+  );
   renderMap();
   renderExpression();
 }
@@ -186,24 +197,43 @@ function renderMap() {
     <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
-  const rowAt = focusedRow();
-  const focused = rowAt === null ? null : view.rows[rowAt];
   const plant = el('map-plant');
-  if (focused) {
-    const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
+  const band = verticalFocus === 'bands' && selectedBand !== null
+    ? view.bands[selectedBand]
+    : null;
+
+  if (band) {
+    const freqAt = view.columns.findIndex((c) => c.siteIndex === selectedSite);
+    const freq = freqAt === -1 ? null : (band.freq[freqAt] ?? null);
     plant.innerHTML =
-      `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
-      `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
-      `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
-      `<dt>Carries</dt><dd>${GENOTYPE_NAME[gt]}</dd>`;
+      `<dt>Band</dt><dd>${(selectedBand as number) + 1} of ${view.bands.length}, coldest first</dd>` +
+      `<dt>Plants</dt><dd>${band.n}</dd>` +
+      `<dt>${humanise(view.axis)}</dt><dd>${fmt(band.meanAxis)} mean</dd>` +
+      `<dt>Alt here</dt><dd>${freq === null ? '&mdash;' : `${(freq * 100).toFixed(1)}%`}</dd>` +
+      band.groups.slice(0, 2)
+        .map(([g, share]) => `<dt>${ancestryLabel(g)}</dt><dd>${Math.round(share * 100)}%</dd>`)
+        .join('');
     plant.hidden = false;
   } else {
-    plant.hidden = true;
+    const rowAt = focusedRow();
+    const focused = rowAt === null ? null : view.rows[rowAt];
+    if (focused) {
+      const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
+      plant.innerHTML =
+        `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
+        `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
+        `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
+        `<dt>Carries</dt><dd>${GENOTYPE_NAME[gt]}</dd>`;
+      plant.hidden = false;
+    } else {
+      plant.hidden = true;
+    }
   }
 
   el('map-hint').textContent =
     `Click any column below, or any tick in the all-sites strip, to change site. ` +
-    `Arrow keys move the cursor: left and right across sites, up and down through plants.` +
+    `Left and right move across sites; up and down move through ` +
+    `${verticalFocus === 'bands' ? 'the climate bands — click a plant row to move through plants instead' : 'the plants — click a climate band to move through bands instead'}.` +
     (result.offMap
       ? ` ${result.offMap} accessions fall outside the native range and are not drawn — Arabidopsis in North America is introduced, carrying European genotypes without having adapted locally.`
       : '');
@@ -385,10 +415,22 @@ canvas.addEventListener('click', (e) => {
     render();
     return;
   }
-  if (hit.col === null) return;
-  const column = view.columns[hit.col];
-  if (!column) return;
-  selectedSite = column.siteIndex;
+
+  // Clicking a section hands it the vertical cursor, and lands that cursor
+  // where the click was - so up and down carry on from there.
+  if (hit.kind === 'band') {
+    verticalFocus = 'bands';
+    selectedBand = Math.max(0, Math.min(view.bands.length - 1, hit.band));
+  } else if (hit.kind === 'row') {
+    verticalFocus = 'accessions';
+    const row = view.rows[hit.row];
+    if (row) selectedAccession = row.accession.id;
+  }
+
+  if (hit.col !== null) {
+    const column = view.columns[hit.col];
+    if (column) selectedSite = column.siteIndex;
+  }
   render();
 });
 
@@ -419,13 +461,28 @@ document.addEventListener('keydown', (e) => {
   // vertical data axis, which is where "where applicable" bites - with no rows
   // there is nothing to move through.
   if (vertical) {
+    const down = e.key === 'ArrowDown';
+
+    if (verticalFocus === 'bands') {
+      if (view.bands.length === 0) return;
+      e.preventDefault();
+      const next =
+        selectedBand === null
+          ? (down ? 0 : view.bands.length - 1)
+          : Math.max(0, Math.min(view.bands.length - 1, selectedBand + (down ? 1 : -1)));
+      if (next === selectedBand) return;
+      selectedBand = next;
+      render();
+      return;
+    }
+
     if (view.rows.length === 0) return;
     e.preventDefault();
     const at = focusedRow();
     const next =
       at === null
-        ? (e.key === 'ArrowDown' ? 0 : view.rows.length - 1)
-        : Math.max(0, Math.min(view.rows.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)));
+        ? (down ? 0 : view.rows.length - 1)
+        : Math.max(0, Math.min(view.rows.length - 1, at + (down ? 1 : -1)));
     const row = view.rows[next];
     if (!row || row.accession.id === selectedAccession) return;
     selectedAccession = row.accession.id;

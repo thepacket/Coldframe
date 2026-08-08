@@ -78,6 +78,8 @@ export function draw(
   selected: number | null,
   /** Row index of the focused plant, or null. Together these are a cell cursor. */
   selectedRow: number | null,
+  /** Band index of the focused climate band, or null. */
+  selectedBand: number | null,
 ) {
   ctx.clearRect(0, 0, L.width, L.height);
 
@@ -272,6 +274,20 @@ export function draw(
     // dense and the rule disappears into it.
     ctx.fillStyle = p.ink;
     ctx.fillRect(0, y - 2, 5, 4);
+  }
+
+  // The focused climate band. Bands are 6px tall, so this is a box rather than
+  // a rule - enough to read as "this group" without hiding the frequencies.
+  if (selectedBand !== null && selectedBand < view.bands.length) {
+    const y = L.bandsY + selectedBand * L.bandH;
+    ctx.strokeStyle = p.panel;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-1.5, y - 0.5, L.width + 3, L.bandH + 1);
+    ctx.strokeStyle = p.ink;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-1.5, y - 0.5, L.width + 3, L.bandH + 1);
+    ctx.fillStyle = p.ink;
+    ctx.fillRect(0, y, 5, L.bandH);
   }
 
 
