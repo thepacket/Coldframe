@@ -1,3 +1,6 @@
+import lociDef from '../loci.json';
+import { getArtifact } from './data/loader';
+import type { LocusDef } from './data/compute';
 import type { Artifact } from './types';
 import { buildView, humanise, type RankBy, type View } from './model';
 import { ancestryColor, ancestryLabel, ancestryOrder } from './ancestry';
@@ -6,20 +9,10 @@ import { drawMap, mapAspect, pickPoint, type MapPoint } from './map';
 import { draw, hitTest, layout, type Hit, type Layout } from './panel';
 import { readPalette, type Palette } from './theme';
 
-/** One row of data/derived/index.json, written by scripts/build-all.mjs. */
-interface IndexEntry {
-  label: string;
-  gene: string;
-  title: string;
-  note: string;
-  file: string;
-  chrom: string;
-  start: number;
-  end: number;
-  accessions: number;
-  sites: number;
-  best: { axis: string; r: number; pos: number } | null;
-}
+const LOCI = lociDef as LocusDef[];
+const ALL_GENES = LOCI.map((l) => l.gene);
+/** Guards against a slow load finishing after the user has moved on. */
+let loadSeq = 0;
 
 const el = <T extends HTMLElement>(id: string): T => {
   const node = document.getElementById(id);
@@ -418,21 +411,40 @@ function populateAxes() {
     chosenAxis && axes.includes(chosenAxis) ? chosenAxis : (axes[0] ?? 'lat');
 }
 
-async function selectLocus(entry: IndexEntry) {
-  const res = await fetch(`/${entry.file}`);
-  if (!res.ok) throw new Error(`could not load ${entry.file}`);
-  artifact = (await res.json()) as Artifact;
+async function selectLocus(def: LocusDef) {
+  const seq = ++loadSeq;
+  status.classList.remove('error');
+  status.textContent = `Loading ${def.label}…`;
+  status.hidden = false;
 
-  el('locus-label').textContent = entry.label;
-  el('locus-gene').textContent = entry.gene;
+  let loaded: Artifact;
+  try {
+    loaded = await getArtifact(def, ALL_GENES, (message) => {
+      if (seq === loadSeq) status.textContent = message;
+    });
+  } catch (err) {
+    if (seq !== loadSeq) return;
+    status.textContent =
+      `Could not assemble ${def.label}.\n\n${err instanceof Error ? err.message : String(err)}` +
+      `\n\nThe data is fetched live from AraCLIM, NCBI GEO and the 1001 Genomes VCFSubset API - ` +
+      `one of them may be unreachable right now. Retry by clicking the locus again.`;
+    status.classList.add('error');
+    return;
+  }
+  if (seq !== loadSeq) return; // user moved on mid-load
+  artifact = loaded;
+  status.hidden = true;
+
+  el('locus-label').textContent = def.label;
+  el('locus-gene').textContent = def.gene;
   el('locus-coords').textContent =
-    `${entry.chrom}:${entry.start.toLocaleString()}–${entry.end.toLocaleString()}`;
+    `${artifact.locus.chrom}:${artifact.locus.start.toLocaleString()}–${artifact.locus.end.toLocaleString()}`;
   const note = el('locus-note');
-  note.textContent = `${entry.title}. ${entry.note}`;
+  note.textContent = `${def.title}. ${def.note}`;
   note.hidden = false;
 
   for (const button of document.querySelectorAll<HTMLButtonElement>('.loci button')) {
-    button.setAttribute('aria-current', String(button.dataset['label'] === entry.label));
+    button.setAttribute('aria-current', String(button.dataset['label'] === def.label));
   }
 
   const legend = el('ancestry-legend');
@@ -461,34 +473,18 @@ async function selectLocus(entry: IndexEntry) {
 }
 
 async function boot() {
-  let loci: IndexEntry[];
-  try {
-    const res = await fetch('/index.json');
-    if (!res.ok) throw new Error('no index');
-    loci = ((await res.json()) as { loci: IndexEntry[] }).loci;
-    if (loci.length === 0) throw new Error('index is empty');
-  } catch {
-    status.textContent =
-      'No loci found.\n\nBuild them first:\n\n  ./scripts/fetch-raw.sh\n  node scripts/build-all.mjs';
-    status.classList.add('error');
-    return;
-  }
-
   const nav = el('loci');
-  for (const entry of loci) {
+  for (const def of LOCI) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = entry.label;
-    button.dataset['label'] = entry.label;
-    button.title = entry.title;
-    button.addEventListener('click', () => void selectLocus(entry));
+    button.textContent = def.label;
+    button.dataset['label'] = def.label;
+    button.title = def.title;
+    button.addEventListener('click', () => void selectLocus(def));
     nav.append(button);
   }
 
-  status.hidden = true;
   nav.hidden = false;
-  // Shown only when the artifacts carry no calls, i.e. a --public build.
-  el('public-notice').hidden = Boolean(loci[0] && !String(loci[0].file).includes('.public.'));
   el('locus-bar').hidden = false;
   el('controls').hidden = false;
   el('ancestry-key').hidden = false;
@@ -510,8 +506,7 @@ async function boot() {
   });
   new ResizeObserver(() => { if (view) render(); }).observe(stage);
 
-  // build-all sorts the index by strongest cline, so the first entry leads.
-  await selectLocus(loci[0] as IndexEntry);
+  await selectLocus(LOCI[0] as LocusDef);
 }
 
 void boot();

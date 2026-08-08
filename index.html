@@ -96,24 +96,6 @@
         </ol>
       </details>
 
-      <aside class="notice" id="public-notice" hidden>
-        <p>
-          <strong>This is the published build, and it is missing its best
-          parts.</strong> The 1001 Genomes callset carries no explicit
-          permission to redistribute genotype calls, so they are not shipped
-          here. That costs the map, the expression chart, and the per-plant
-          rows, and limits the banded panel to a subset of sites. Everything
-          derived from the calls — allele frequencies, gradients, ancestry
-          controls, the all-sites strip — is present, because a statistic is a
-          fact about the data rather than a copy of it.
-        </p>
-        <p>
-          <a href="https://github.com/thepacket/Coldframe">Run it locally</a>
-          and the fetch script pulls the calls straight from the source API,
-          which is allowed. It takes about a minute.
-        </p>
-      </aside>
-
       <nav class="loci" id="loci" hidden aria-label="Locus"></nav>
 
       <div class="locus-bar" id="locus-bar" hidden>
@@ -191,10 +173,13 @@
 
       <footer class="colophon">
         <p>
-          <em>Arabidopsis thaliana</em>, 1001 Genomes panel. Climate from AraCLIM,
-          expression from GEO&nbsp;GSE80744, genotypes from the 1001&nbsp;Genomes
-          v3.1 callset. See <a href="https://github.com/thepacket/Coldframe">the repository</a>
-          for sources and terms.
+          <em>Arabidopsis thaliana</em>, 1001 Genomes panel. Nothing is bundled
+          with this page: your browser fetches climate and the roster from
+          AraCLIM, expression from GEO&nbsp;GSE80744, and genotypes from the
+          1001&nbsp;Genomes VCFSubset API, then computes every statistic
+          locally. Each source is cached after first use. See
+          <a href="https://github.com/thepacket/Coldframe">the repository</a>
+          for sources, terms, and citations.
         </p>
       </footer>
     </div>

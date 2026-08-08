@@ -73,8 +73,7 @@ expression, the segregating sites with allele frequencies, per-site
 environmental correlations, band aggregates, and a genotype string per site
 (one character per accession, aligned to the roster).
 
-Add `--public` for shippable artifacts, which omit the genotype matrix. See
-[Licence](#licence). `build-locus.mjs` builds a single locus if you want one:
+`build-locus.mjs` builds a single locus if you want one:
 
 ```bash
 node scripts/build-locus.mjs AT5G10140 5:3170000-3182000 FLC
@@ -88,26 +87,31 @@ the gene does. Add an entry, rerun both scripts, and it appears in the app.
 The embedded coastline is prebuilt and committed. To regenerate it, download
 Natural Earth `ne_110m_land.geojson` and run `node scripts/build-coastline.mjs`.
 
-## There is no hosted version
+## Nothing is packaged
 
-Coldframe is not deployed anywhere, deliberately.
+The app ships no data. When you open it, **your browser fetches every source
+from its origin archive and computes every statistic locally**:
 
-A `--public` build — the only kind the 1001 Genomes terms clearly permit — has
-no map, no expression chart, no per-plant rows, and a banded panel limited to
-the sites the precomputed table covers. It was briefly live on fly.io with a
-notice explaining the omissions, which was honest but beside the point: a tool
-that is candid about what it withholds is still a tool that withholds. Shipping
-half of it to people who cannot tell what the other half would have shown is
-worse than shipping none of it.
+| Source | Fetched from | Size |
+|---|---|---|
+| Roster + climate | AraCLIM's repository | 2.3 MB, once |
+| Expression | NCBI GEO (GSE80744) | 26 MB, once — nine rows kept, rest discarded |
+| Genotypes | 1001 Genomes VCFSubset API | 5–9 MB per locus, on demand |
 
-So the install is the distribution. Clone it, run two scripts, and the fetch
-pulls genotype calls straight from the source API — which is allowed, and takes
-about a minute. Anyone willing to do that gets the whole thing.
+All three origins send `Access-Control-Allow-Origin: *`. The VCFSubset response
+is BGZF, decoded with a small block-walker over `DecompressionStream`; the
+statistics are a line-for-line port of `scripts/build-locus.mjs`, and a
+browser-assembled locus matches a node-built one to the fourth decimal.
+Everything is cached in IndexedDB, so each source is fetched once per browser —
+a locus takes a few seconds cold and is instant after.
 
-If the consortium ever confirms in writing that locus-scale slices may be
-redistributed, this becomes a one-line change and a hosted build is worth
-having. The deployment config (Dockerfile, nginx.conf, fly.toml) is in the
-history if that day comes.
+Coldframe therefore redistributes nothing, which dissolves the licensing
+question that shaped every earlier design: there is no `--public` build, no
+publish guard, and no view that exists only locally. The deployable app is
+three static files totalling ~120 KB, hostable anywhere. It is not currently
+deployed; the courtesy email to the 1001 Genomes group about API traffic is
+drafted and unsent, and hosting is one `fly deploy` away once that feels
+settled.
 
 ## Running the app
 
@@ -116,13 +120,13 @@ npm install
 npm run dev
 ```
 
-Vite serves `data/derived` directly, so the app picks up whichever artifact is
-there — the full one locally, the `--public` one otherwise. Without genotypes
-the banded panel still works; the per-accession panel says so and stands down.
+That is the whole thing — no scripts, no data step. The browser assembles each
+locus from the source archives on first visit.
 
-`npm run build` refuses to run while a non-publishable artifact is sitting in
-`data/derived`, because Vite would copy it into `dist/`. Build with `--public`
-and remove the local copy first.
+The node pipeline under `scripts/` still exists as optional local tooling: it
+produces the same artifacts on disk for offline work, diagnostics, and the
+preview renderer, and it remains the reference implementation the browser port
+is checked against.
 
 ## The panel
 
@@ -163,9 +167,9 @@ wrong reading. They are counted instead. And the southern edge drops exactly
 one accession — Cvi-0, from Cape Verde at 15°N — because framing for it would
 spend 40% of the map on empty ocean and Sahara.
 
-The map needs per-accession calls, so it does not appear in a `--public` build.
-That is the sharpest cost of the licensing position, and the best argument for
-getting the terms confirmed.
+The map draws per-accession calls, which the browser now fetches itself — so
+unlike earlier versions there is no build of Coldframe in which this view is
+missing.
 
 ## Expression by genotype
 
@@ -283,9 +287,8 @@ with no statistical justification, held in place by band frequencies being
 precomputed for exactly 48 sites. Bands are now computed live from the genotype
 matrix, so the constraint is gone.
 
-A `--public` build still falls back to the precomputed table and is limited to
-what it covers, because it has no genotypes to compute from. One more thing the
-licensing position costs.
+Bands are computed live from the genotype matrix, which the browser always
+has.
 
 Which sites appear first still depends on the ranking, and the two rankings
 disagree hard enough that the strongest expression effect was unreachable in
@@ -317,29 +320,13 @@ The code is [MIT](LICENSE). Every dependency it plans to use — `@gmod/tabix`,
 [data-sources.json](data-sources.json), which the build script reads to decide
 what may be published; attribution is in [NOTICE](NOTICE).
 
-The plan is to ship precomputed loci as a static bundle, which is redistribution.
-Three of the four sources permit it with attribution. The fourth doesn't say.
-
-The 1001 Genomes policy is a Fort Lauderdale-style pre-publication clause — no
-whole-genome-scale analysis published ahead of the consortium — which the 2016
-*Cell* paper discharges in substance. A 12 kb locus is also a vanishing fraction
-of a 19 GB callset. So redistributing it is *probably* fine. But "probably"
-shouldn't be load-bearing in a public repository.
-
-So the design doesn't decide. It makes the decision cheap:
-
-- Artifacts split into a part that always ships and a part that's gated.
-  Per-accession genotype calls are gated; everything else ships.
-- `--public` omits the gated part. What remains includes per-site allele
-  frequencies and environmental correlations computed *from* the calls — facts
-  about the data rather than a subset of it.
-- Anyone can reconstruct the full artifact locally by running
-  `scripts/fetch-raw.sh`, which pulls genotypes from the source API directly.
-- If the terms are ever confirmed in writing, dropping `--public` is the entire
-  change.
-
-For FLC that costs 1.0 MB → 412 KB and loses none of the science: 142 testable
-sites survive with their clines intact.
+Earlier versions gated redistribution: artifacts split into a shippable part
+and a genotype part, a `--public` flag, and a guard that refused to build while
+calls were present. That apparatus is gone because the question it managed is
+gone — the app now redistributes nothing at all. Genotype calls are fetched by
+each visitor's browser directly from the 1001 Genomes VCFSubset API and never
+touch this project's servers or repository. The history holds the old design if
+anyone needs it.
 
 This is a good-faith reading of published terms, not legal advice.
 
