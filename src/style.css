@@ -427,17 +427,7 @@ input[type="range"]::-moz-range-thumb {
 .atlas-stats dt { color: var(--muted); }
 .atlas-stats dd { margin: 0; font-family: var(--mono); font-size: 0.78rem; }
 
-.atlas-cross {
-  margin-top: 0.7rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--rule);
-}
-
-.atlas-cross[hidden] { display: none; }
-.atlas-cross .control-label { margin-bottom: 0.35rem; }
-
-/* The value at the intersection is the point of the whole readout. */
-.atlas-stats .at-cursor { color: var(--ink); font-weight: 600; }
+.atlas-cross { display: none; } /* retired: crossings now report on the plots */
 
 .atlas-hint {
   margin: 1rem 0 0;
@@ -532,6 +522,56 @@ canvas { display: block; }
   white-space: pre-wrap;
   line-height: 1.7;
 }
+
+/* --- cursor card ---------------------------------------------------------- */
+
+/* Reports the cell the two cursors address, sitting on the panel next to the
+   crossing itself. A readout beside the map was useless: the plots are a
+   screen away from it, and the number belongs where the eye already is. */
+.cursor-card {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
+  padding: 0.6rem 0.75rem;
+  min-width: 12rem;
+  max-width: 17rem;
+}
+
+.cursor-card[hidden] { display: none; }
+
+/* The plot whose horizontal cursor the arrow keys currently drive. */
+.cursor-card.focused { border-color: var(--muted); }
+
+.cursor-card .cc-value {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.cursor-card .cc-where {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.cursor-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  margin: 0.5rem 0 0;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.75rem;
+}
+
+.cursor-card dt { color: var(--muted); }
+.cursor-card dd { margin: 0; font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); }
 
 /* --- tooltip ------------------------------------------------------------ */
 

@@ -105,6 +105,7 @@ function render() {
   );
   renderMap();
   renderExpression();
+  renderCursorCards();
 }
 
 /**
@@ -136,6 +137,7 @@ function renderExpression() {
     artifact.accessions,
     artifact.genotypes[selectedSite],
     view.axis,
+    selectedAccession,
   );
 
   const site = artifact.sites[selectedSite];
@@ -197,57 +199,91 @@ function renderMap() {
     <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
-  // Both cursors report the cell they cross with the selected site, and both
-  // stay visible regardless of which one the arrow keys currently drive. The
-  // intersection value is what the panel is actually being asked, so it is the
-  // emphasised line in each block rather than a footnote under the identity.
-  const siteLabel = `${artifact.locus.chrom}:${site.pos.toLocaleString()}`;
-
-  const bandBox = el('cross-band');
-  const band = selectedBand === null ? null : view.bands[selectedBand];
-  if (band) {
-    const at = view.columns.findIndex((c) => c.siteIndex === selectedSite);
-    const freq = at === -1 ? null : (band.freq[at] ?? null);
-    el('cross-band-stats').innerHTML =
-      `<dt>Alt at ${siteLabel}</dt><dd class="at-cursor">${
-        freq === null ? 'not shown' : `${(freq * 100).toFixed(1)}%`
-      }</dd>` +
-      `<dt>Band</dt><dd>${(selectedBand as number) + 1} of ${view.bands.length}, coldest first</dd>` +
-      `<dt>Plants</dt><dd>${band.n}</dd>` +
-      `<dt>${humanise(view.axis)}</dt><dd>${fmt(band.meanAxis)} mean</dd>` +
-      band.groups.slice(0, 2)
-        .map(([g, share]) => `<dt>${ancestryLabel(g)}</dt><dd>${Math.round(share * 100)}%</dd>`)
-        .join('');
-    bandBox.hidden = false;
-  } else {
-    bandBox.hidden = true;
-  }
-
-  const plantBox = el('cross-plant');
-  const rowAt = focusedRow();
-  const focused = rowAt === null ? null : view.rows[rowAt];
-  if (focused) {
-    const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
-    el('cross-plant-stats').innerHTML =
-      `<dt>Carries at ${siteLabel}</dt><dd class="at-cursor">${GENOTYPE_NAME[gt]}</dd>` +
-      `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
-      `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
-      `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
-      `<dt>Expression</dt><dd>${
-        focused.accession.expression === null ? '&mdash;' : fmt(focused.accession.expression, 0)
-      }</dd>`;
-    plantBox.hidden = false;
-  } else {
-    plantBox.hidden = true;
-  }
-
   el('map-hint').textContent =
     `Click any column below, or any tick in the all-sites strip, to change site. ` +
-    `Left and right move across sites; up and down move through ` +
-    `${verticalFocus === 'bands' ? 'the climate bands — click a plant row to move through plants instead' : 'the plants — click a climate band to move through bands instead'}.` +
+    `Arrow keys move the cursors; the cards on the plots report their crossings.` +
     (result.offMap
       ? ` ${result.offMap} accessions fall outside the native range and are not drawn — Arabidopsis in North America is introduced, carrying European genotypes without having adapted locally.`
       : '');
+}
+
+/**
+ * One card per plot, each reporting the cell at the crossing of the vertical
+ * cursor (the selected site) with that plot's own horizontal cursor: the
+ * focused climate band above, the focused plant below.
+ *
+ * The cards sit on the plots beside their crossings, because that is where the
+ * eye is - a readout next to the map was a screen away from what it described.
+ * The two never collide: each is clamped to its own plot's vertical range.
+ */
+function renderCursorCards() {
+  const bandCard = el('card-band');
+  const plantCard = el('card-plant');
+  bandCard.hidden = true;
+  plantCard.hidden = true;
+
+  const site = selectedSite === null ? null : artifact.sites[selectedSite];
+  const colAt = view.columns.findIndex((c) => c.siteIndex === selectedSite);
+  if (!site || colAt === -1) return;
+
+  const siteLabel = `${artifact.locus.chrom}:${site.pos.toLocaleString()}`;
+
+  // Canvas coordinates -> stage coordinates: the canvas sits inside the
+  // stage's padding, so the cards need its offset or they land 20px shy of
+  // the crossing they claim to mark.
+  const ox = canvas.offsetLeft;
+  const oy = canvas.offsetTop;
+  const place = (card: HTMLElement, yCenter: number, yMin: number, yMax: number) => {
+    const pad = 12;
+    const cw = card.offsetWidth;
+    const ch = card.offsetHeight;
+    const cx = box.matrixX + colAt * box.cellW;
+    const left = cx + box.cellW + pad + cw > box.width ? cx - cw - pad : cx + box.cellW + pad;
+    card.style.left = `${ox + Math.max(0, Math.min(box.width - cw, left))}px`;
+    card.style.top = `${oy + Math.max(yMin, Math.min(yMax - ch, yCenter - ch / 2))}px`;
+  };
+
+  const band = selectedBand === null ? null : view.bands[selectedBand];
+  if (band) {
+    const freq = band.freq[colAt] ?? null;
+    const top = band.groups[0];
+    bandCard.innerHTML =
+      `<div class="cc-value">${freq === null ? 'not measured' : `${(freq * 100).toFixed(1)}% alternate`}</div>` +
+      `<div class="cc-where">band ${(selectedBand as number) + 1} of ${view.bands.length} &times; ${siteLabel}</div>` +
+      `<dl>` +
+      `<dt>Plants</dt><dd>${band.n}</dd>` +
+      `<dt>${humanise(view.axis)}</dt><dd>${fmt(band.meanAxis)} mean</dd>` +
+      (top ? `<dt>Mostly</dt><dd>${ancestryLabel(top[0])} ${Math.round(top[1] * 100)}%</dd>` : '') +
+      `</dl>`;
+    bandCard.classList.toggle('focused', verticalFocus === 'bands');
+    bandCard.hidden = false;
+    place(
+      bandCard,
+      box.bandsY + (selectedBand as number) * box.bandH + box.bandH / 2,
+      box.overviewY,
+      box.rowsY - 26,
+    );
+  }
+
+  const rowAt = focusedRow();
+  const row = rowAt === null ? null : view.rows[rowAt];
+  if (rowAt !== null && row) {
+    const gt = artifact.genotypes?.[selectedSite as number]?.[row.gtIndex] ?? '.';
+    plantCard.innerHTML =
+      `<div class="cc-value">${GENOTYPE_NAME[gt] ?? 'not called'}</div>` +
+      `<div class="cc-where">${row.accession.name} &times; ${siteLabel}</div>` +
+      `<dl>` +
+      `<dt>From</dt><dd>${row.accession.country} &middot; ${ancestryLabel(row.ancestry)}</dd>` +
+      `<dt>Rank</dt><dd>${rowAt + 1} of ${view.rows.length}, coldest first</dd>` +
+      `<dt>${humanise(view.axis)}</dt><dd>${fmt(row.axisValue)}</dd>` +
+      `<dt>Expression</dt><dd>${
+        row.accession.expression === null ? '&mdash;' : fmt(row.accession.expression, 0)
+      }</dd>` +
+      `</dl>`;
+    plantCard.classList.toggle('focused', verticalFocus === 'accessions');
+    plantCard.hidden = false;
+    place(plantCard, box.rowsY + rowAt * box.rowH, box.rowsY, box.height);
+  }
 }
 
 function rebuild() {
@@ -355,12 +391,18 @@ function tooltipHtml(hit: Hit): string | null {
 
   if (hit.kind === 'overview') return overviewTip(hit.site);
 
-  const col = hit.kind === 'cline' ? hit.col : hit.col;
-  const column = col === null ? null : view.columns[col];
+  // The bands and the accessions report through the crossing cards, so a
+  // mouse-position tooltip there would put a second, different cell on screen
+  // over the one the cursors address - which was exactly the complaint. The
+  // strips keep their hover: site-level data, no horizontal cursor to cross.
+  if (hit.kind === 'band' || hit.kind === 'row') return null;
+
+  // Only the cline strip is left: the other kinds returned above.
+  const column = view.columns[hit.col];
   const site = column?.site;
   const where = site ? `${artifact.locus.chrom}:${site.pos.toLocaleString()}` : '';
 
-  if (hit.kind === 'cline' && column && site) {
+  if (column && site) {
     return `<div class="tip-title">${where}</div>
       <div class="tip-sub">${site.ref} &rarr; ${site.alt}</div>
       <dl>
@@ -370,41 +412,6 @@ function tooltipHtml(hit: Hit): string | null {
         <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
         <dt>Alt frequency</dt><dd>${fmt(site.altFreq * 100, 1)}%</dd>
         <dt>Called in</dt><dd>${site.called} plants</dd>
-      </dl>`;
-  }
-
-  if (hit.kind === 'band') {
-    const band = view.bands[hit.band];
-    if (!band) return null;
-    const freq = column && hit.col !== null ? (band.freq[hit.col] ?? null) : null;
-    return `<div class="tip-title">Climate band ${hit.band + 1} of ${view.bands.length}</div>
-      <div class="tip-sub">${band.n} plants</div>
-      <dl>
-        <dt>${axisLabel}</dt><dd>${fmt(band.meanAxis)} mean</dd>
-        ${band.groups.slice(0, 3).map(([g, share]) =>
-          `<dt>${ancestryLabel(g)}</dt><dd>${Math.round(share * 100)}%</dd>`).join('')}
-        ${site ? `<dt>At ${where}</dt><dd>${freq === null ? '&mdash;' : `${fmt(freq * 100, 1)}% alt`}</dd>` : ''}
-      </dl>`;
-  }
-
-  if (hit.kind === 'row') {
-    const row = view.rows[hit.row];
-    if (!row) return null;
-    const a = row.accession;
-    const gt = site && artifact.genotypes
-      ? (artifact.genotypes[column!.siteIndex]?.[row.gtIndex] ?? '.')
-      : null;
-    // `group` is an admixture group, not a place - a US accession can sit in
-    // the Germany group, because North American Arabidopsis was introduced from
-    // Europe. Labelling it next to the country would read as a contradiction.
-    return `<div class="tip-title">${a.name}</div>
-      <div class="tip-sub">${a.country} · accession ${a.id}</div>
-      <dl>
-        <dt>${axisLabel}</dt><dd>${fmt(row.axisValue)}</dd>
-        ${a.group ? `<dt>Ancestry</dt><dd>${a.group}</dd>` : ''}
-        <dt>Expression</dt><dd>${a.expression === null ? '&mdash;' : fmt(a.expression, 0)}</dd>
-        ${a.lat !== null && a.lng !== null ? `<dt>Origin</dt><dd>${fmt(a.lat, 2)}, ${fmt(a.lng, 2)}</dd>` : ''}
-        ${gt ? `<dt>At ${where}</dt><dd>${GENOTYPE_NAME[gt]}</dd>` : ''}
       </dl>`;
   }
 
@@ -553,6 +560,7 @@ document.addEventListener('keydown', (e) => {
 mapCanvas.addEventListener('mousemove', (e) => {
   const rect = mapCanvas.getBoundingClientRect();
   const point = pickPoint(mapPoints, e.clientX - rect.left, e.clientY - rect.top);
+  mapCanvas.style.cursor = point ? 'pointer' : 'default';
   if (!point) { tooltip.hidden = true; return; }
 
   const a = point.accession;
@@ -576,6 +584,19 @@ mapCanvas.addEventListener('mousemove', (e) => {
 });
 
 mapCanvas.addEventListener('mouseleave', () => { tooltip.hidden = true; });
+
+// Clicking a plant on the map focuses it, exactly as clicking its row does:
+// the ring, the row rule and the plant crossing card all move to it, and the
+// arrow keys pick up from there. The map had display of the cursor without
+// input to it, which was an omission rather than a decision.
+mapCanvas.addEventListener('click', (e) => {
+  const rect = mapCanvas.getBoundingClientRect();
+  const point = pickPoint(mapPoints, e.clientX - rect.left, e.clientY - rect.top);
+  if (!point) return;
+  selectedAccession = point.accession.id;
+  verticalFocus = 'accessions';
+  render();
+});
 
 // --- boot -------------------------------------------------------------------
 

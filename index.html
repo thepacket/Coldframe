@@ -71,9 +71,11 @@
             column, or any tick in the all-sites strip: the map jumps to that
             site and colours every plant by what it carries there, and the chart
             beneath splits expression by genotype. Left and right then walk the
-            cursor across sites; up and down walk it through the plants,
-            coldest at the top. Together they address one cell — this plant, at
-            this site. Hover for the underlying record.
+            cursor across sites; up and down walk it through the plants or the
+            climate bands — whichever you clicked last, coldest at the top
+            either way. A card on each plot reports the cell at its crossing:
+            this band at this site, this plant at this site. The two strips at
+            the top still answer to the mouse.
           </li>
           <li>
             <strong>Rare does not mean unimportant.</strong> Most variation in a
@@ -153,14 +155,6 @@
           <p class="control-label">Selected site</p>
           <p class="atlas-site" id="map-site"></p>
           <dl class="atlas-stats" id="map-stats"></dl>
-          <div class="atlas-cross" id="cross-band" hidden>
-            <p class="control-label">Climate band &times; site</p>
-            <dl class="atlas-stats" id="cross-band-stats"></dl>
-          </div>
-          <div class="atlas-cross" id="cross-plant" hidden>
-            <p class="control-label">Plant &times; site</p>
-            <dl class="atlas-stats" id="cross-plant-stats"></dl>
-          </div>
           <p class="atlas-hint" id="map-hint"></p>
         </div>
       </section>
@@ -180,6 +174,8 @@
 
       <main class="stage">
         <canvas id="panel"></canvas>
+        <div class="cursor-card" id="card-band" hidden></div>
+        <div class="cursor-card" id="card-plant" hidden></div>
         <p class="status" id="status">Loading locus…</p>
       </main>
 

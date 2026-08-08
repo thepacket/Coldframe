@@ -71,6 +71,9 @@ export function drawExpression(
   accessions: Accession[],
   genotypeRow: string | undefined,
   axis: string,
+  /** Accession id of the focused plant - ringed, so a map or matrix click shows
+   *  where that plant sits in the expression distribution. */
+  highlightId?: string | null,
 ): ExpressionResult {
   ctx.clearRect(0, 0, w, h);
 
@@ -123,6 +126,7 @@ export function drawExpression(
     // dense column reads as a column rather than a blob.
     const buckets = new Map<number, number>();
     const dots: Dot[] = [];
+    let focused: Dot | null = null;
     for (const m of members) {
       const x = toX(m.value as number);
       const bucket = Math.round(x / (DOT_R * 1.7));
@@ -131,7 +135,9 @@ export function drawExpression(
       const step = Math.ceil(rank / 2) * (DOT_R * 1.75);
       const offset = rank === 0 ? 0 : rank % 2 === 1 ? -step : step;
       const y = Math.max(bandTop + DOT_R, Math.min(bandTop + BAND_H - DOT_R, mid + offset));
-      dots.push({ x, y, climate: climateRank.get(m.accession.id) ?? null });
+      const dot = { x, y, climate: climateRank.get(m.accession.id) ?? null };
+      dots.push(dot);
+      if (highlightId && m.accession.id === highlightId) focused = dot;
     }
 
     for (const dot of dots) {
@@ -160,6 +166,19 @@ export function drawExpression(
       ctx.beginPath();
       ctx.moveTo(mx, bandTop + 6);
       ctx.lineTo(mx, bandTop + BAND_H - 6);
+      ctx.stroke();
+    }
+
+    // The focused plant, ringed after everything else in its band so the mark
+    // survives the swarm. Same treatment as its ring on the map.
+    if (focused) {
+      ctx.strokeStyle = p.panel;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(focused.x, focused.y, DOT_R + 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = p.ink;
+      ctx.lineWidth = 1.6;
       ctx.stroke();
     }
 
