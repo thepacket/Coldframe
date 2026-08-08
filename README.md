@@ -232,6 +232,35 @@ This does not undo the [validation](#validation) below, which asks whether the
 join produces real structure in the right place. It does undo any reading of
 these clines as demonstrated adaptation.
 
+## What is hidden
+
+Coldframe shows a curated slice, not a region. Three filters sit between the
+data and the screen, and the panel now states the first two on every render.
+
+**Rare variants get no statistic.** Any site where the rarer allele appears in
+under 5% of plants, or which is called in fewer than 300 of them, is dropped
+before ranking. A correlation carried by twenty plants is noise, so this is
+defensible — but it is not small. Across the nine loci: **9,403 segregating
+sites, 1,439 testable, 15%.** At *FLC*, 690 of 974 sites fail on frequency
+alone.
+
+**Only 48 sites are drawn.** Of the 15% that survive, the panel shows 48. Which
+48 depends on the ranking, and the two rankings disagree hard enough that the
+strongest expression effect was unreachable in five of nine loci until the
+ranking became switchable.
+
+**Ten environmental measures out of 212.** AraCLIM ships 212 columns;
+[loci.json](loci.json)'s companion list in `build-locus.mjs` uses ten, chosen
+for relevance to cold and light. So every "strongest gradient" in this
+repository means *strongest among those ten*, including the *PHYB* insolation
+result — and if the real driver is one of the other 202, Coldframe cannot see
+it.
+
+None of these is a bug, and the first is good statistics. But together they
+mean the tool answers "what does this curated slice look like" rather than
+"what is in this region", and a reader who does not know that will overread
+every number here.
+
 ## Contributing
 
 Issues are welcome — corrections to the biology especially. Pull requests are

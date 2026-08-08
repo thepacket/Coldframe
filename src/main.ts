@@ -184,6 +184,16 @@ function rebuild() {
   const count = Number(sitesInput.value);
   siteCountOut.textContent = String(count);
   view = buildView(artifact, axis, count, rankSelect.value as RankBy);
+
+  // State the funnel rather than only its output. Most of a region's variation
+  // is too rare to support a correlation and gets no statistic at all, so the
+  // panel is a curated slice - and it should say so without being asked.
+  const testable = (artifact.cline[axis] ?? []).filter((r) => r !== null).length;
+  el('locus-counts').textContent =
+    `${artifact.accessions.length} accessions · ` +
+    `${view.columns.length} of ${testable} testable sites · ` +
+    `${artifact.sites.length} segregating`;
+
   render();
 }
 
@@ -362,9 +372,6 @@ async function selectLocus(entry: IndexEntry) {
   el('locus-gene').textContent = entry.gene;
   el('locus-coords').textContent =
     `${entry.chrom}:${entry.start.toLocaleString()}–${entry.end.toLocaleString()}`;
-  el('locus-counts').textContent =
-    `${artifact.accessions.length} accessions · ${artifact.sites.length} segregating sites`;
-
   const note = el('locus-note');
   note.textContent = `${entry.title}. ${entry.note}`;
   note.hidden = false;
