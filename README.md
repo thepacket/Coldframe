@@ -15,6 +15,10 @@ Built on *Arabidopsis thaliana*, whose 1001 Genomes panel is the best natural
 experiment in climate adaptation we have — 1,135 accessions collected from Cape
 Verde to northern Scandinavia, sequenced, expression-profiled, and geo-referenced.
 
+![Coldframe showing the FRI locus: a map of collection sites coloured by
+genotype, expression split by allele, and a matrix of 664 accessions ordered
+from coldest to warmest origin](coldframe.png)
+
 Status: **early, but real.** Nine loci, a map, and a linked panel. No gene
 models yet, and no way to bring your own region.
 
