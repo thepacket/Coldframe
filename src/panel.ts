@@ -76,6 +76,8 @@ export function draw(
   axisLabel: string,
   /** Site index driving the map, outlined here so the two views stay tied. */
   selected: number | null,
+  /** Row index of the focused plant, or null. Together these are a cell cursor. */
+  selectedRow: number | null,
 ) {
   ctx.clearRect(0, 0, L.width, L.height);
 
@@ -243,8 +245,35 @@ export function draw(
     });
   }
 
-  // --- selected column ------------------------------------------------------
-  // Drawn last, so neither the bands nor the rows paint over the outline.
+  // --- cursor ---------------------------------------------------------------
+  // Drawn last, so neither the bands nor the rows paint over it.
+
+  // The focused plant: a full-width rule through the accessions section. One
+  // row is a single pixel, so the marker has to overhang to be findable.
+  //
+  // Drawn in ink over a panel-coloured halo, not in accent. Accent is a hair
+  // away from the alternate-allele colour in dark theme, so an accent cursor
+  // vanishes exactly where the matrix is most interesting. Same halo trick the
+  // expression medians use, and for the same reason: the cursor has to read
+  // against every colour the data can put underneath it.
+  if (selectedRow !== null && view.hasGenotypes && selectedRow < view.rows.length) {
+    const y = Math.round(L.rowsY + selectedRow * L.rowH) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(L.width, y);
+    ctx.strokeStyle = p.panel;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.strokeStyle = p.ink;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // A tick in the left margin, so the row is locatable when the matrix is
+    // dense and the rule disappears into it.
+    ctx.fillStyle = p.ink;
+    ctx.fillRect(0, y - 2, 5, 4);
+  }
+
 
   const selectedCol =
     selected === null ? -1 : view.columns.findIndex((c) => c.siteIndex === selected);
@@ -252,7 +281,7 @@ export function draw(
   if (selected !== null) {
     const site = view.allSites[selected];
     if (site) {
-      ctx.strokeStyle = p.accent;
+      ctx.strokeStyle = p.ink;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(Math.round(overviewX(site.pos)) + 0.5, L.overviewY);
@@ -266,9 +295,16 @@ export function draw(
     const bottom = view.hasGenotypes
       ? L.rowsY + view.rows.length * L.rowH
       : L.bandsY + view.bands.length * L.bandH;
-    ctx.strokeStyle = p.accent;
+    ctx.strokeStyle = p.ink;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x - 0.75, L.clineY - 3.75, L.cellW + 1.5, bottom - L.clineY + 7.5);
+
+    // Where the two meet: the addressed cell.
+    if (selectedRow !== null && view.hasGenotypes && selectedRow < view.rows.length) {
+      const y = L.rowsY + selectedRow * L.rowH;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 1.5, y - 2.5, L.cellW + 3, L.rowH + 5);
+    }
   }
 }
 

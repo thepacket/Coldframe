@@ -47,6 +47,8 @@ export function drawMap(
   p: Palette,
   accessions: Accession[],
   genotypeRow: string | undefined,
+  /** Accession id of the focused plant, ringed so the row cursor is visible here too. */
+  highlightId?: string | null,
 ): MapResult {
   ctx.clearRect(0, 0, w, h);
 
@@ -119,6 +121,17 @@ export function drawMap(
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, g === '0' || g === '.' ? 2.9 : 3.6, 0, Math.PI * 2);
       ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  if (highlightId) {
+    const focused = points.find((pt) => pt.accession.id === highlightId);
+    if (focused) {
+      ctx.strokeStyle = p.ink;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(focused.x, focused.y, 7, 0, Math.PI * 2);
       ctx.stroke();
     }
   }

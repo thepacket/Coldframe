@@ -39,6 +39,12 @@ let palette: Palette = readPalette();
 let chosenAxis: string | null = null;
 /** Index into artifact.sites - the site the map is drawing. */
 let selectedSite: number | null = null;
+/**
+ * The focused plant, held as an accession id rather than a row index: rows are
+ * ordered by the current axis, so an index would silently point at a different
+ * plant the moment the ordering changed.
+ */
+let selectedAccession: string | null = null;
 let mapPoints: MapPoint[] = [];
 /** Until the slider is touched, it tracks the maximum rather than a fixed count. */
 let siteCountTouched = false;
@@ -65,6 +71,13 @@ el('theme').addEventListener('click', () => {
 
 // --- rendering --------------------------------------------------------------
 
+/** Where the focused plant sits in the current ordering, or null. */
+function focusedRow(): number | null {
+  if (selectedAccession === null) return null;
+  const at = view.rows.findIndex((r) => r.accession.id === selectedAccession);
+  return at === -1 ? null : at;
+}
+
 function render() {
   const available = stage.clientWidth - 40; // stage padding
   box = layout(view, available);
@@ -78,7 +91,7 @@ function render() {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  draw(ctx, view, box, palette, artifact.genotypes, humanise(view.axis), selectedSite);
+  draw(ctx, view, box, palette, artifact.genotypes, humanise(view.axis), selectedSite, focusedRow());
   renderMap();
   renderExpression();
 }
@@ -151,7 +164,9 @@ function renderMap() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const site = artifact.sites[selectedSite];
-  const result = drawMap(ctx, w, h, palette, artifact.accessions, artifact.genotypes[selectedSite]);
+  const result = drawMap(
+    ctx, w, h, palette, artifact.accessions, artifact.genotypes[selectedSite], selectedAccession,
+  );
   mapPoints = result.points;
   if (!site) return;
 
@@ -171,8 +186,24 @@ function renderMap() {
     <dt>within ancestry</dt><dd>${kept(site.exprRWithin, site.exprR)}</dd>
     <dt>Alt frequency</dt><dd>${(site.altFreq * 100).toFixed(1)}%</dd>
     <dt>On the map</dt><dd>${mapPoints.length} plants</dd>`;
+  const rowAt = focusedRow();
+  const focused = rowAt === null ? null : view.rows[rowAt];
+  const plant = el('map-plant');
+  if (focused) {
+    const gt = artifact.genotypes[selectedSite]?.[focused.gtIndex] ?? '.';
+    plant.innerHTML =
+      `<dt>Plant</dt><dd>${focused.accession.name}, ${focused.accession.country}</dd>` +
+      `<dt>Rank</dt><dd>${(rowAt as number) + 1} of ${view.rows.length}, coldest first</dd>` +
+      `<dt>${humanise(view.axis)}</dt><dd>${fmt(focused.axisValue)}</dd>` +
+      `<dt>Carries</dt><dd>${GENOTYPE_NAME[gt]}</dd>`;
+    plant.hidden = false;
+  } else {
+    plant.hidden = true;
+  }
+
   el('map-hint').textContent =
-    `Click any column below, or any tick in the all-sites strip, to change site.` +
+    `Click any column below, or any tick in the all-sites strip, to change site. ` +
+    `Arrow keys move the cursor: left and right across sites, up and down through plants.` +
     (result.offMap
       ? ` ${result.offMap} accessions fall outside the native range and are not drawn — Arabidopsis in North America is introduced, carrying European genotypes without having adapted locally.`
       : '');
@@ -371,7 +402,9 @@ canvas.addEventListener('click', (e) => {
  * the first press lands on the nearest one by position.
  */
 document.addEventListener('keydown', (e) => {
-  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const horizontal = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+  const vertical = e.key === 'ArrowUp' || e.key === 'ArrowDown';
+  if (!horizontal && !vertical) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   // Leave the dropdowns and the slider their own arrow behaviour.
@@ -379,8 +412,28 @@ document.addEventListener('keydown', (e) => {
   if (target && (/^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName) || target.isContentEditable)) {
     return;
   }
-  if (!view || view.columns.length === 0) return;
+  if (!view) return;
 
+  // Up and down walk the plants, in the order the panel already shows them:
+  // coldest at the top, so up is colder. Only the accessions section has a
+  // vertical data axis, which is where "where applicable" bites - with no rows
+  // there is nothing to move through.
+  if (vertical) {
+    if (view.rows.length === 0) return;
+    e.preventDefault();
+    const at = focusedRow();
+    const next =
+      at === null
+        ? (e.key === 'ArrowDown' ? 0 : view.rows.length - 1)
+        : Math.max(0, Math.min(view.rows.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)));
+    const row = view.rows[next];
+    if (!row || row.accession.id === selectedAccession) return;
+    selectedAccession = row.accession.id;
+    render();
+    return;
+  }
+
+  if (view.columns.length === 0) return;
   const step = e.key === 'ArrowRight' ? 1 : -1;
   const at = view.columns.findIndex((c) => c.siteIndex === selectedSite);
   let next: number;

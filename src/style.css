@@ -427,6 +427,14 @@ input[type="range"]::-moz-range-thumb {
 .atlas-stats dt { color: var(--muted); }
 .atlas-stats dd { margin: 0; font-family: var(--mono); font-size: 0.78rem; }
 
+.atlas-plant {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--rule);
+}
+
+.atlas-plant[hidden] { display: none; }
+
 .atlas-hint {
   margin: 1rem 0 0;
   color: var(--muted);
