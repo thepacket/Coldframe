@@ -197,6 +197,27 @@ h1 {
 .primer-steps strong { color: var(--ink); font-weight: 600; }
 .primer-steps em { font-style: italic; }
 
+/* --- published-build notice --------------------------------------------- */
+
+.notice {
+  margin-bottom: 1.75rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--focus);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 76ch;
+}
+
+.notice[hidden] { display: none; }
+.notice p { margin: 0; }
+.notice p + p { margin-top: 0.6rem; }
+.notice strong { color: var(--ink); }
+.notice a { color: var(--ink); }
+
 /* --- locus picker ------------------------------------------------------- */
 
 .loci {

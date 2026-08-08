@@ -487,6 +487,8 @@ async function boot() {
 
   status.hidden = true;
   nav.hidden = false;
+  // Shown only when the artifacts carry no calls, i.e. a --public build.
+  el('public-notice').hidden = Boolean(loci[0] && !String(loci[0].file).includes('.public.'));
   el('locus-bar').hidden = false;
   el('controls').hidden = false;
   el('ancestry-key').hidden = false;

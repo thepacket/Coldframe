@@ -88,6 +88,30 @@ the gene does. Add an entry, rerun both scripts, and it appears in the app.
 The embedded coastline is prebuilt and committed. To regenerate it, download
 Natural Earth `ne_110m_land.geojson` and run `node scripts/build-coastline.mjs`.
 
+## Deployed
+
+**[coldframe.fly.dev](https://coldframe.fly.dev)** — static, no backend, idles
+to zero machines between visits.
+
+It is the `--public` build, so it is **missing its best parts**: no map, no
+expression chart, no per-plant rows, and the banded panel is limited to the
+sites the precomputed table covers. Everything derived from the calls survives,
+because a statistic is a fact about the data rather than a copy of it. The page
+says so at the top rather than letting anyone wonder.
+
+```bash
+npm run build && fly deploy
+```
+
+`npm run build` runs `scripts/check-publishable.mjs` first, which refuses while
+`data/derived` holds artifacts carrying genotype calls. That check is the only
+thing between a local build and publishing data the 1001 Genomes terms do not
+clearly permit — do not work around it by deploying a stale `dist/`.
+
+The image is nginx serving a prebuilt `dist/` and nothing else. The build
+deliberately does not run inside Docker: it needs ~100 MB of source data that is
+disposable, gitignored, and has no business in an image.
+
 ## Running the app
 
 ```bash
