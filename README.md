@@ -256,11 +256,20 @@ The all-sites strip at the top of the panel draws every one of them at true
 genomic position, dimmed where untestable, and any tick is clickable. **Nothing
 in the region is unreachable.**
 
-**Only 48 sites get the full treatment.** The ranked panel below the strip shows
-48 — a viewport limit with no statistical justification, which is why the strip
-above it exists. Which 48 depends on the ranking, and the two rankings disagree
-hard enough that the strongest expression effect was unreachable in five of nine
-loci until the ranking became switchable.
+**~~Only 48 sites get the full treatment.~~** There is no longer a cap. The
+ranked panel shows every site the chosen statistic can score — 39 at *CO*, 178
+at *CBF*, 340 at *CMT2* — and defaults there. The old 48 was a viewport limit
+with no statistical justification, held in place by band frequencies being
+precomputed for exactly 48 sites. Bands are now computed live from the genotype
+matrix, so the constraint is gone.
+
+A `--public` build still falls back to the precomputed table and is limited to
+what it covers, because it has no genotypes to compute from. One more thing the
+licensing position costs.
+
+Which sites appear first still depends on the ranking, and the two rankings
+disagree hard enough that the strongest expression effect was unreachable in
+five of nine loci until the ranking became switchable.
 
 **Ten environmental measures out of 212.** AraCLIM ships 212 columns;
 [loci.json](loci.json)'s companion list in `build-locus.mjs` uses ten, chosen

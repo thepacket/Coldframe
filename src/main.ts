@@ -47,6 +47,8 @@ let chosenAxis: string | null = null;
 /** Index into artifact.sites - the site the map is drawing. */
 let selectedSite: number | null = null;
 let mapPoints: MapPoint[] = [];
+/** Until the slider is touched, it tracks the maximum rather than a fixed 48. */
+let siteCountTouched = false;
 
 // --- theme ------------------------------------------------------------------
 
@@ -185,13 +187,25 @@ function renderMap() {
 
 function rebuild() {
   const axis = axisSelect.value;
-  const count = Number(sitesInput.value);
-  siteCountOut.textContent = String(count);
-  view = buildView(artifact, axis, count, rankSelect.value as RankBy);
+  const rankBy = rankSelect.value as RankBy;
 
-  // State the funnel rather than only its output. Most of a region's variation
-  // is too rare to support a correlation and gets no statistic at all, so the
-  // panel is a curated slice - and it should say so without being asked.
+  // How many sites could be shown under this ranking. There is no fixed cap:
+  // the slider reaches every site the chosen statistic can score, and defaults
+  // there. Narrowing is the user's choice, not the tool's.
+  const rankable =
+    rankBy === 'cline'
+      ? (artifact.cline[axis] ?? []).filter((r) => r !== null).length
+      : artifact.sites.filter((s) => s.exprR !== null).length;
+
+  sitesInput.max = String(Math.max(6, rankable));
+  if (!siteCountTouched || Number(sitesInput.value) > rankable) {
+    sitesInput.value = String(Math.max(6, rankable));
+  }
+  const count = Number(sitesInput.value);
+  siteCountOut.textContent = `${count} of ${rankable}`;
+
+  view = buildView(artifact, axis, count, rankBy);
+
   const testable = (artifact.cline[axis] ?? []).filter((r) => r !== null).length;
   el('locus-counts').textContent =
     `${artifact.accessions.length} accessions · ` +
@@ -481,7 +495,7 @@ async function boot() {
     chosenAxis = axisSelect.value;
     rebuild();
   });
-  sitesInput.addEventListener('input', rebuild);
+  sitesInput.addEventListener('input', () => { siteCountTouched = true; rebuild(); });
   rankSelect.addEventListener('change', () => {
     // Re-open on the strongest site under the new ranking, otherwise switching
     // leaves the map pointing at a site that may no longer be on screen.

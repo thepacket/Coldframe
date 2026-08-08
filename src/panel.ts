@@ -15,7 +15,7 @@ const CLINE_H = 44;
 const OVERVIEW_H = 40;
 const BAND_H = 6;
 const ROW_H = 1;
-const MIN_CELL = 9;
+const MIN_CELL = 5; // narrow enough that most loci fit every testable site
 const MAX_CELL = 40;
 
 export interface Layout {

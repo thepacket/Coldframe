@@ -1,7 +1,7 @@
 // Turns an artifact plus the current controls into everything the panel draws.
 // No canvas here, no DOM - just the arrangement.
 
-import type { Artifact, Accession, Site } from './types';
+import type { Artifact, Accession, AxisBands, Site } from './types';
 
 export interface Row {
   accession: Accession;
@@ -63,6 +63,89 @@ export interface View {
   /** Accessions dropped for want of a value on this axis. */
   omitted: number;
   hasGenotypes: boolean;
+}
+
+/** Equal-count climate bands. Matches what build-locus.mjs precomputes. */
+const BAND_COUNT = 32;
+
+interface Ordered {
+  accession: Accession;
+  gtIndex: number;
+  axisValue: number;
+}
+
+/**
+ * Bands computed from the genotype matrix, for any number of columns.
+ *
+ * Roughly bands x columns x plants multiplications - about 30ms at 340
+ * columns, which is fine for a control change and acceptable while dragging.
+ */
+function liveBands(
+  genotypes: string[],
+  ordered: Ordered[],
+  columns: Column[],
+  ranks: Map<string, number>,
+  ancestry: string[],
+  bandCount: number,
+): Band[] {
+  const bands: Band[] = [];
+  for (let b = 0; b < bandCount; b++) {
+    const members = ordered.slice(
+      Math.floor((b * ordered.length) / bandCount),
+      Math.floor(((b + 1) * ordered.length) / bandCount),
+    );
+    if (members.length === 0) continue;
+
+    const tally = new Map<string, number>();
+    for (const m of members) {
+      const g = ancestry[m.gtIndex] ?? 'unknown';
+      tally.set(g, (tally.get(g) ?? 0) + 1);
+    }
+
+    bands.push({
+      meanAxis: members.reduce((s, m) => s + m.axisValue, 0) / members.length,
+      exprRank:
+        members.reduce((s, m) => s + (ranks.get(m.accession.id) ?? 0), 0) / members.length,
+      n: members.length,
+      groups: [...tally.entries()]
+        .sort((x, y) => y[1] - x[1])
+        .map(([name, count]) => [name, count / members.length] as [string, number]),
+      freq: columns.map((c) => {
+        const row = genotypes[c.siteIndex];
+        if (!row) return null;
+        let sum = 0;
+        let called = 0;
+        for (const m of members) {
+          const ch = row[m.gtIndex];
+          if (ch === undefined || ch === '.') continue;
+          sum += ch === '0' ? 0 : ch === '1' ? 1 : 2;
+          called++;
+        }
+        return called === 0 ? null : sum / (2 * called);
+      }),
+    });
+  }
+  return bands;
+}
+
+/** Fallback for --public builds, limited to the sites the artifact covers. */
+function precomputedBands(axisBands: AxisBands | undefined, columns: Column[]): Band[] {
+  if (!axisBands) return [];
+  const slot = new Map(axisBands.sites.map((si, n) => [si, n]));
+  const exprValues = axisBands.meanExpr;
+  const [eLo, eHi] = [Math.min(...exprValues), Math.max(...exprValues)];
+  const eSpan = eHi - eLo || 1;
+
+  return axisBands.freq.map((row, b) => ({
+    meanAxis: axisBands.meanAxis[b] as number,
+    exprRank: ((exprValues[b] as number) - eLo) / eSpan,
+    n: axisBands.n[b] as number,
+    groups: axisBands.groups?.[b] ?? [],
+    freq: columns.map((c) => {
+      const n = slot.get(c.siteIndex);
+      return n === undefined ? null : (row[n] ?? null);
+    }),
+  }));
 }
 
 const axisValueOf = (a: Accession, axis: string): number | null =>
@@ -134,29 +217,15 @@ export function buildView(
       }))
     : [];
 
-  // Band frequencies are precomputed against the artifact's own 48-site list,
-  // so map our chosen columns onto it rather than assuming the orders agree.
-  const bands: Band[] = [];
-  if (axisBands) {
-    const slot = new Map(axisBands.sites.map((si, n) => [si, n]));
-    const exprValues = axisBands.meanExpr;
-    const [eLo, eHi] = [Math.min(...exprValues), Math.max(...exprValues)];
-    const eSpan = eHi - eLo || 1;
-
-    for (let b = 0; b < axisBands.freq.length; b++) {
-      const row = axisBands.freq[b] as (number | null)[];
-      bands.push({
-        meanAxis: axisBands.meanAxis[b] as number,
-        exprRank: (((exprValues[b] as number) - eLo) / eSpan),
-        n: axisBands.n[b] as number,
-        groups: axisBands.groups?.[b] ?? [],
-        freq: columns.map((c) => {
-          const n = slot.get(c.siteIndex);
-          return n === undefined ? null : (row[n] ?? null);
-        }),
-      });
-    }
-  }
+  // Bands two ways.
+  //
+  // With genotypes in hand we compute them live, which frees the panel from the
+  // artifact's 48-site precompute and lets every testable site be shown. A
+  // --public build has no genotypes, so it falls back to the precomputed table
+  // and is limited to the sites that table covers.
+  const bands: Band[] = artifact.genotypes
+    ? liveBands(artifact.genotypes, ordered, columns, ranks, artifact.ancestry ?? [], BAND_COUNT)
+    : precomputedBands(axisBands, columns);
 
   const shifts = artifact.shift?.[axis] ?? [];
   const allSites: OverviewSite[] = artifact.sites.map((site, i) => ({

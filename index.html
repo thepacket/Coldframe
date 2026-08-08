@@ -123,9 +123,10 @@
 
         <label class="control">
           <span class="control-label">Sites shown <em id="site-count"></em></span>
-          <!-- max must not exceed BAND_SITES in scripts/build-locus.mjs (48).
-               Band frequencies are precomputed for that many sites per axis;
-               past it the banded panel would silently draw empty cells. -->
+          <!-- max is set per locus in main.ts to however many sites the current
+               ranking can score. Safe past 48 because bands are computed live
+               from genotypes; a --public build falls back to the precomputed
+               table and is limited to what that covers. -->
           <input type="range" id="sites" min="6" max="48" step="1" value="48" />
         </label>
 
