@@ -1,0 +1,11 @@
+# Source data and build artifacts. Everything here is regenerable:
+#   ./scripts/fetch-raw.sh && node scripts/build-locus.mjs ...
+data/
+
+node_modules/
+dist/
+
+# Machine-local Claude Code settings
+.claude/settings.local.json
+
+.DS_Store
