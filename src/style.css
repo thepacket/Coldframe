@@ -609,11 +609,34 @@ canvas { display: block; }
 /* --- colophon ----------------------------------------------------------- */
 
 .colophon {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
   margin-top: 2rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+/* The plant itself, next to the note explaining why it was chosen. Small and
+   quiet: it is a footnote, not a hero. */
+/* The credit lives in the note beside it, not under it - CC BY asks for
+   attribution near the work, and the note is right there.
+   Ordered last so the photo sits to the right of the note, while staying
+   first in the markup for screen readers to meet before the prose. */
+.colophon-plant {
+  flex: none;
+  order: 1;
+  display: block;
+  width: 96px;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+
+@media (max-width: 560px) {
+  .colophon { flex-wrap: wrap; }
 }
 
 .colophon p { margin: 0; max-width: 70ch; }

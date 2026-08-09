@@ -36,6 +36,20 @@ Artifacts built by scripts/build-locus.mjs contain material derived from:
    https://plants.ensembl.org/
    No restrictions on use or redistribution.
 
+4. arabidopsis.png - photograph of Arabidopsis thaliana in flower
+   (c) Marie-Lan Nguyen / Wikimedia Commons
+   Licensed under Creative Commons Attribution 2.5 Generic (CC BY 2.5).
+   https://creativecommons.org/licenses/by/2.5
+   https://commons.wikimedia.org/wiki/File:Arabidopsis_thaliana_JdP_2013-04-28.jpg
+
+   Cropped and scaled for use in the page footer; not otherwise modified.
+   The credit also appears in the footer note beside the photograph, since
+   CC BY requires attribution to travel with the work.
+
+5. Natural Earth 110m land polygons (src/coastline.json)
+   https://www.naturalearthdata.com/
+   Public domain.
+
 ------------------------------------------------------------------------------
 Not redistributed
 ------------------------------------------------------------------------------
