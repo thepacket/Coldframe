@@ -118,6 +118,48 @@ which is gitignored and never shipped. The embedded coastline is the one
 prebuilt asset: it is committed, and `build-coastline.mjs` regenerates it from
 Natural Earth's `ne_110m_land.geojson` if ever needed.
 
+## Deploying to fly.io
+
+The live site is nginx serving the prebuilt `dist/` — three static files, no
+data, no backend. Config lives in [fly.toml](fly.toml), the
+[Dockerfile](Dockerfile), and [nginx.conf](nginx.conf).
+
+To ship the current code:
+
+```bash
+npm run build && fly deploy
+```
+
+**Always as a pair.** The build does not run inside the Docker image — the
+image just copies `dist/` — so `fly deploy` on its own faithfully ships
+whatever is already there, however old. This has bitten once: a deploy that
+"succeeded" while production kept the previous behaviour, because `dist/` was
+hours stale.
+
+Fly creates two machines by default for redundancy; a tool this size wants
+one:
+
+```bash
+fly scale count 1 --yes
+```
+
+The app idles to zero machines between visits (`min_machines_running = 0` in
+fly.toml), so a quiet deployment costs nothing but a cold start on the next
+visit.
+
+First-time setup, for a fork deploying its own copy:
+
+```bash
+fly auth login
+fly apps create <your-app-name>   # then set `app` in fly.toml to match
+npm run build && fly deploy
+```
+
+Nothing else — no secrets, no volumes, no environment. The server never sees a
+genotype; everything the page shows is fetched by the visitor's browser
+directly from the source archives, so any static host works the same way if
+fly is not to taste.
+
 ## The panel
 
 Three sections, sharing one set of columns — the sites with the strongest
