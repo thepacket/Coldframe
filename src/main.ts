@@ -208,6 +208,24 @@ function renderMap() {
 }
 
 /**
+ * Long rows in a floating window drop their value to the next line instead of
+ * wrapping in a narrow right-hand column. The two-column grid sizes its label
+ * column to the longest label, so one verbose axis name ("Land temperature
+ * night spring") was squeezing every value into a sliver.
+ */
+function reflowWideRows(container: HTMLElement) {
+  for (const dd of container.querySelectorAll('dd')) {
+    const dt = dd.previousElementSibling;
+    const length =
+      (dt?.textContent ?? '').trim().length + (dd.textContent ?? '').trim().length;
+    if (length > 26) {
+      dd.classList.add('wide');
+      dt?.classList.add('wide');
+    }
+  }
+}
+
+/**
  * One card per plot, each reporting the cell at the crossing of the vertical
  * cursor (the selected site) with that plot's own horizontal cursor: the
  * focused climate band above, the focused plant below.
@@ -257,6 +275,7 @@ function renderCursorCards() {
       `</dl>`;
     bandCard.classList.toggle('focused', verticalFocus === 'bands');
     bandCard.hidden = false;
+    reflowWideRows(bandCard);
     place(
       bandCard,
       box.bandsY + (selectedBand as number) * box.bandH + box.bandH / 2,
@@ -282,6 +301,7 @@ function renderCursorCards() {
       `</dl>`;
     plantCard.classList.toggle('focused', verticalFocus === 'accessions');
     plantCard.hidden = false;
+    reflowWideRows(plantCard);
     place(plantCard, box.rowsY + rowAt * box.rowH, box.rowsY, box.height);
   }
 }
@@ -429,6 +449,7 @@ canvas.addEventListener('mousemove', (e) => {
   }
   tooltip.innerHTML = html;
   tooltip.hidden = false;
+  reflowWideRows(tooltip);
 
   // Keep the card on screen without letting it sit under the cursor.
   const t = tooltip.getBoundingClientRect();
@@ -577,6 +598,7 @@ mapCanvas.addEventListener('mousemove', (e) => {
       }</dd>
     </dl>`;
   tooltip.hidden = false;
+  reflowWideRows(tooltip);
   const t = tooltip.getBoundingClientRect();
   const x = e.clientX + 16 + t.width > window.innerWidth ? e.clientX - t.width - 16 : e.clientX + 16;
   tooltip.style.left = `${Math.max(8, x)}px`;
