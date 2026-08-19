@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A browser for one genomic locus across a thousand wild plants, ordered by the climate each came from.",
+  "description": "An interactive hypothesis browser: one genomic locus across a thousand wild plants, ordered by the climate each came from.",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

@@ -8,8 +8,17 @@ cold-adaptation gene and the allele frequency gradient appears as a visible
 cline, because the accessions are ordered by the world rather than by accession
 number.
 
-It asks one question: **does the allele you carry change how you respond when the
-light goes?**
+It is an **interactive hypothesis browser**. It is not an adaptation detector,
+and it is not a crop-breeding predictor. What it shows is where an allele sits
+in the world, whether it travels with expression, and how much of either
+survives an ancestry control — enough to find a question worth asking and state
+it precisely, not enough to answer it. Nothing it draws demonstrates selection,
+and nothing it computes transfers to a crop. The sections on
+[ancestry](#ancestry-and-why-the-raw-clines-overstate) and
+[what is hidden](#what-is-hidden) say why in detail.
+
+The question it lets you browse is: **does the allele you carry change how you
+respond when the light goes?**
 
 Built on *Arabidopsis thaliana*, whose 1001 Genomes panel is the best natural
 experiment in climate adaptation we have — 1,135 accessions collected from Cape
